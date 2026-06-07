@@ -231,7 +231,6 @@ pi-browser/
 | `linkedom` | Lightweight DOM parser |
 | `p-limit` | Concurrency limiter for parallel fetches |
 | `turndown` | HTML to Markdown conversion |
-| `unpdf` | Installed for future PDF text extraction; not wired into `fetch_content` yet |
 
 ### Tool Flow
 
