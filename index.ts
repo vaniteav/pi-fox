@@ -70,6 +70,7 @@ interface ExtConfig {
 	activeProvider?: ProviderId;
 	supervised?: boolean;
 	headless?: boolean;
+	suppressStartupMessage?: boolean;
 }
 
 /** Settings snapshot — read once per tool call, passed everywhere. Zero extra disk reads. */
@@ -215,8 +216,8 @@ function getHeadless(config: Config): boolean {
 
 function getSupervised(config: Config): boolean {
 	if (typeof config.ext.supervised === "boolean") return config.ext.supervised;
-	const val = (process.env.PI_BROWSER_SUPERVISED || "false").toLowerCase();
-	return val === "true" || val === "1";
+	const val = (process.env.PI_BROWSER_SUPERVISED || "true").toLowerCase();
+	return val !== "false" && val !== "0";
 }
 
 function getViewport(config: Config): { width: number; height: number } {
@@ -232,7 +233,7 @@ function getViewport(config: Config): { width: number; height: number } {
  */
 function ensureSessionDir(state: BrowserState): string {
 	if (!state.sessionDir) {
-		const base = join(homedir(), ".pi", "agent", "browser-sessions");
+		const base = join(homedir(), "Pictures", "pi-web", "sessions");
 		const ts = new Date().toISOString().replace(/[:.]/g, "-").substring(0, 19);
 		state.sessionDir = join(base, ts);
 		mkdirSync(state.sessionDir, { recursive: true });
@@ -1445,11 +1446,34 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 
 	pi.on("session_start", async (_event, ctx) => {
 		const { active } = getActiveConfig(config);
-		const searchProvider = active?.id ?? "none";
-		ctx.ui.notify(
-			`Browser+Web extension loaded (${browserState.engine}, headless=${browserState.headless}, search=${searchProvider})`,
-			"info",
-		);
+		const suppress = config.ext.suppressStartupMessage === true;
+
+		if (!suppress) {
+			const supervisedOn = browserState.supervised;
+			const screenshotPath = join(homedir(), "Pictures", "pi-web", "sessions");
+
+			if (supervisedOn) {
+				ctx.ui.notify(
+					`[pi-web] Supervised mode: ON\n` +
+					`  Screenshots saved to: ${screenshotPath}\n` +
+					`  To toggle: set browserExt.supervised = true/false in ~/.pi/agent/settings.json\n` +
+					`             — or just ask me to turn it on or off.\n` +
+					`  To hide this message: set browserExt.suppressStartupMessage = true\n` +
+					`                        — or just ask me to hide it.`,
+					"info",
+				);
+			} else {
+				ctx.ui.notify(
+					`[pi-web] Supervised mode: OFF\n` +
+					`  To enable automatic screenshots: set browserExt.supervised = true\n` +
+					`                                   — or just ask me to turn it on.\n` +
+					`  To hide this message: set browserExt.suppressStartupMessage = true\n` +
+					`                        — or just ask me to hide it.`,
+					"info",
+				);
+			}
+		}
+
 		if (!active) {
 			ctx.ui.notify(
 				"⚠ No search key configured. web_search and code_search are disabled.\n" +
