@@ -1,0 +1,22 @@
+{
+  "name": "pi-browser-web",
+  "version": "1.0.0",
+  "description": "Browser automation (Playwright/Firefox) + web search/content fetching extension for pi coding agent",
+  "main": "index.ts",
+  "scripts": {},
+  "keywords": ["pi-extension", "browser", "playwright", "firefox", "web-search", "content-fetch"],
+  "author": "Pi Agent OWL on behalf of Vanitea",
+  "license": "MIT",
+  "type": "commonjs",
+  "dependencies": {
+    "playwright": "^1.60.0",
+    "@mozilla/readability": "^0.6.0",
+    "linkedom": "^0.18.12",
+    "p-limit": "^7.3.0",
+    "turndown": "^7.2.4",
+    "unpdf": "^1.6.2"
+  },
+  "pi": {
+    "extensions": ["./index.ts"]
+  }
+}
