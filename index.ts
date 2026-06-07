@@ -525,6 +525,47 @@ const perplexityProvider: ProviderImpl = {
 	},
 };
 
+/**
+ * Wraps a CustomProviderConfig from settings.json into a live ProviderImpl.
+ * The transform string is a full async search() implementation — it handles both
+ * request building and response parsing. Compile and runtime errors are surfaced
+ * separately so the user knows whether their syntax or their field mapping is broken.
+ */
+function buildCustomProviderImpl(cfg: CustomProviderConfig): ProviderImpl {
+	return {
+		id: cfg.id,
+		label: cfg.label,
+		envKey: cfg.envKey,
+		freeTier: cfg.freeTier,
+		signupUrl: cfg.signupUrl,
+		hasKey(config) {
+			return !!(config.ext as Record<string, unknown>)[cfg.envKey] ||
+				!!process.env[cfg.envKey];
+		},
+		async search(query, n, config) {
+			const apiKey = String(
+				(config.ext as Record<string, unknown>)[cfg.envKey] ||
+				process.env[cfg.envKey] || ""
+			);
+			type TransformFn = (q: string, n: number, k: string, f: typeof fetchJson) => Promise<SearchResult>;
+			let fn: TransformFn;
+			try {
+				fn = new Function(
+					"query", "n", "apiKey", "fetchJson",
+					`return (${cfg.transform})(query, n, apiKey, fetchJson)`
+				) as TransformFn;
+			} catch (err) {
+				throw new Error(`Transform compile error in "${cfg.label}": ${err instanceof Error ? err.message : String(err)}`);
+			}
+			try {
+				return await fn(query, n, apiKey, fetchJson);
+			} catch (err) {
+				throw new Error(`Transform runtime error in "${cfg.label}": ${err instanceof Error ? err.message : String(err)}`);
+			}
+		},
+	};
+}
+
 /** To add a new provider: add one ProviderImpl object here. Nothing else changes. */
 const PROVIDER_REGISTRY: ProviderImpl[] = [
 	braveProvider, tavilyProvider, exaProvider, geminiProvider, perplexityProvider,
