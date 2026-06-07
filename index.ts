@@ -1,7 +1,7 @@
 /**
  * Pi Browser + Web Access Extension
  *
- * Author: Pi Agent OWL on behalf of Vanitea
+ * Author: vanitea
  *
  * Unified extension providing browser automation (via Playwright) and web access
  * (search, content fetching, code search) in a single package.
@@ -41,7 +41,7 @@
  *   First configured key becomes active. Use /web-switch to change at runtime.
  *
  * Usage:
- *   pi -e ~/.pi/agent/extensions/pi-browser/index.ts
+ *   pi -e ~/.pi/agent/extensions/pi-web/index.ts
  *   /browser    — first-run onboarding wizard
  *   /web-switch — switch active provider
  */
