@@ -1788,32 +1788,92 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 		},
 	});
 
-	pi.registerCommand("web-switch", {
-		description: "Quickly switch the active search provider",
-		handler: async (_args, ctx) => {
+	pi.registerCommand("search", {
+		description: "Search provider management — status, switch, add, remove. Use /search <provider-id> to switch instantly.",
+		handler: async (args, ctx) => {
 			const cfg = loadConfig();
 			const { providers, active } = getActiveConfig(cfg);
 
-			if (!providers.length) {
-				ctx.ui.notify("No providers configured. Run /browser for setup.", "warning");
+			// ── Direct switch: /search <provider-id> ──
+			const arg = (args as string).trim().toLowerCase();
+			if (arg) {
+				const target = providers.find(p => p.id === arg);
+				if (target) {
+					patchExtConfig({ activeProvider: target.id as ProviderId });
+					ctx.ui.notify(`Switched to ${target.label}. Run /reload to activate.`, "info");
+				} else {
+					ctx.ui.notify(`Search provider '${arg}' is not configured.`, "warning");
+					ctx.ui.notify(
+						providers.length > 0
+							? `Your configured providers: ${providers.map(p => p.id).join(", ")}`
+							: "No providers configured yet.",
+						"info",
+					);
+					ctx.ui.notify(
+						"Need to add one? Run /search → Add a provider, or ask me: 'add Exa as a search provider'",
+						"info",
+					);
+				}
 				return;
 			}
-			if (providers.length === 1) {
-				ctx.ui.notify(`Only one provider configured: ${providers[0].label}. Run /browser to add more.`, "info");
+
+			// ── Onboarding: no providers configured ──
+			if (providers.length === 0) {
+				ctx.ui.notify("⚠ No search providers configured. web_search and code_search are disabled.", "warning");
+
+				const choice = await ctx.ui.select(
+					"Would you like to configure a search provider?",
+					[
+						{ value: "brave",      label: "Brave Search — FREE (2,000 queries/mo)",  description: "Best free option. Sign up at brave.com/search/api/" },
+						{ value: "tavily",     label: "Tavily — FREE (1,000 queries/mo)",         description: "Designed for AI agents. Sign up at app.tavily.com" },
+						{ value: "exa",        label: "Exa — FREE tier (2,500 queries/mo)",       description: "Sign up at exa.ai" },
+						{ value: "gemini",     label: "Google Gemini — free tier",                description: "Get key at aistudio.google.com/app/apikey" },
+						{ value: "perplexity", label: "Perplexity AI — paid",                     description: "Get key at perplexity.ai/settings/api" },
+						{ value: "skip",       label: "Skip — configure later",                   description: "You can run /search again anytime" },
+					],
+				);
+
+				if (choice && choice !== "skip") {
+					const def = PROVIDER_REGISTRY.find(p => p.id === choice);
+					if (def) {
+						ctx.ui.notify(`To use ${def.label}:`, "info");
+						ctx.ui.notify(`1. Get a free key: ${def.signupUrl}`, "info");
+						ctx.ui.notify(`2. Set it via one of these methods:`, "info");
+						ctx.ui.notify(`   Shell (current session):   export ${def.envKey}="your-key-here"`, "info");
+						ctx.ui.notify(`   Shell (persistent):        Add the above to ~/.bashrc`, "info");
+						ctx.ui.notify(`   Windows (persistent):      setx ${def.envKey} "your-key-here"`, "info");
+						ctx.ui.notify(`   Pi settings (persistent):  Edit ~/.pi/agent/settings.json:`, "info");
+						ctx.ui.notify(`     { "browserExt": { "${def.envKey}": "your-key-here", "activeProvider": "${def.id}" } }`, "info");
+						ctx.ui.notify(`3. Restart pi or run /reload for the key to take effect.`, "info");
+					}
+				} else {
+					ctx.ui.notify("Skipped. Run /search anytime to configure a provider.", "info");
+				}
 				return;
 			}
 
-			ctx.ui.notify(`Current: ${active?.label ?? "none"} · ${providers.length} configured`, "info");
+			// ── Hub: providers configured ──
+			ctx.ui.notify(
+				`Active provider: ${active?.label ?? "none"}\nConfigured providers: ${providers.map(p => p.id).join(", ")}`,
+				"info",
+			);
 
-			const newProvider = await ctx.ui.select("Switch to:", providers.map(p => ({
-				value: p.id, label: p.label, description: p.id === active?.id ? "(current)" : "",
-			})));
+			const choice = await ctx.ui.select(
+				`${active ? `Active: ${active.label}` : "No active provider"} · ${providers.length} configured · Options:`,
+				[
+					{ value: "switch",     label: "Switch active provider",   description: "Change which provider is used for web_search" },
+					{ value: "add",        label: "Add a provider",           description: "Configure an additional search provider" },
+					{ value: "add-custom", label: "Add custom provider",      description: "Wizard: add any search API without editing source" },
+					{ value: "remove",     label: "Remove a provider key",    description: "Clear a provider's key from settings.json" },
+					{ value: "done",       label: "Done",                     description: "Exit" },
+				],
+			);
 
-			if (newProvider && newProvider !== active?.id) {
-				patchExtConfig({ activeProvider: newProvider as ProviderId });
-				ctx.ui.notify(`Switched to ${PROVIDER_REGISTRY.find(p => p.id === newProvider)?.label}. Run /reload to activate.`, "info");
-			} else if (newProvider === active?.id) {
-				ctx.ui.notify("No change — same provider selected.", "info");
+			switch (choice) {
+				case "switch":     await runProviderSwitch(ctx, providers); break;
+				case "add":        await runProviderAdd(ctx, providers); break;
+				case "add-custom": await runCustomProviderWizard(ctx); break;
+				case "remove":     await runProviderRemove(ctx, cfg, providers); break;
 			}
 		},
 	});
