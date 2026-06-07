@@ -1,8 +1,19 @@
+<div align="center">
+
+![Pi-Fox banner](docs/banner.png)
+
 # pi-fox
 
-![Pi-Fox banner](https://raw.githubusercontent.com/vaniteav/pi-fox/main/docs/banner.png)
-
 > Browser automation + multi-provider web search for your Pi agent — with automatic screenshot audit trail (optional).
+
+[![npm version](https://badge.fury.io/js/pi-fox.svg)](https://badge.fury.io/js/pi-fox)
+[![npm downloads](https://img.shields.io/npm/dw/pi-fox)](https://www.npmjs.com/package/pi-fox)
+
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/L2J320X82M)
+
+</div>
+
+---
 
 Give your Pi coding agent a real browser and live web access. Every page it navigates to, every click it makes, is photographed automatically and saved to your local filesystem — so you can open that folder any time and see exactly what your agent saw. You stay in control: supervised mode is on by default, headless is on by default, and every setting can be changed by asking your agent or editing a single JSON file.
 

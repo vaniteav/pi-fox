@@ -13,6 +13,10 @@
     "content-fetch",
     "supervised-mode"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vaniteav/pi-fox.git"
+  },
   "author": "vanitea",
   "license": "MIT",
   "type": "commonjs",
