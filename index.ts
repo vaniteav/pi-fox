@@ -1445,6 +1445,75 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 		}
 	}
 
+	interface ProviderMeta {
+		id: string;
+		label: string;
+		envKey: string;
+		freeTier: string;
+		signupUrl: string;
+		apiKey: string;
+	}
+
+	async function runCollectProviderMeta(ctx: Parameters<typeof runProviderSwitch>[0]): Promise<ProviderMeta | null> {
+		ctx.ui.notify("── Step 1 of 3: Provider details ──", "info");
+		ctx.ui.notify(
+			"You will be asked to select from options for each field.\n" +
+			"For free-text values (name, URL, key), pick the matching option and enter your value when prompted.",
+			"info",
+		);
+
+		const label = await ctx.ui.select("Provider display name — pick the closest match or 'Other' to type:", [
+			{ value: "SerpAPI", label: "SerpAPI", description: "Google results via SerpAPI" },
+			{ value: "Bing Web Search", label: "Bing Web Search", description: "Microsoft Bing" },
+			{ value: "You.com", label: "You.com", description: "You.com search" },
+			{ value: "Kagi", label: "Kagi", description: "Kagi search (paid)" },
+			{ value: "custom", label: "Other — I'll type it", description: "Enter a custom name" },
+		]);
+		if (!label) return null;
+
+		const id = (label === "custom" ? "custom" : label.toLowerCase().replace(/[^a-z0-9]/g, "-"));
+		const envKey = (label === "custom" ? "CUSTOM_SEARCH_KEY" : label.toUpperCase().replace(/[^A-Z0-9]/g, "_") + "_KEY");
+
+		ctx.ui.notify(`Provider ID will be: ${id}`, "info");
+		ctx.ui.notify(`Env key name will be: ${envKey}`, "info");
+		ctx.ui.notify(
+			`Store your API key in settings.json now:\n` +
+			`  Edit ~/.pi/agent/settings.json → add under "browserExt":\n` +
+			`    "${envKey}": "your-key-here"`,
+			"info",
+		);
+
+		const keyConfirm = await ctx.ui.select("Have you added your API key to settings.json?", [
+			{ value: "yes", label: "Yes — key is saved", description: "Continue to transform step" },
+			{ value: "no", label: "No — cancel", description: "Exit wizard" },
+		]);
+		if (keyConfirm !== "yes") return null;
+
+		const signupUrl = await ctx.ui.select("Signup / docs URL:", [
+			{ value: "https://serpapi.com/", label: "SerpAPI — https://serpapi.com/" },
+			{ value: "https://www.microsoft.com/en-us/bing/apis/bing-web-search-api", label: "Bing — microsoft.com" },
+			{ value: "https://you.com/", label: "You.com — https://you.com/" },
+			{ value: "https://kagi.com/", label: "Kagi — https://kagi.com/" },
+			{ value: "unknown", label: "Other / unknown" },
+		]);
+
+		const freeTier = await ctx.ui.select("Free tier:", [
+			{ value: "100/mo", label: "100 queries/mo" },
+			{ value: "1,000/mo", label: "1,000 queries/mo" },
+			{ value: "paid", label: "Paid only" },
+			{ value: "free", label: "Free" },
+		]);
+
+		return {
+			id,
+			label: label === "custom" ? id : label,
+			envKey,
+			freeTier: freeTier ?? "—",
+			signupUrl: signupUrl ?? "—",
+			apiKey: "",
+		};
+	}
+
 	pi.registerCommand("browser", {
 		description: "Browser status, onboarding wizard, and usage help",
 		handler: async (_args, ctx) => {
