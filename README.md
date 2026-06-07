@@ -4,7 +4,7 @@
 
 # pi-fox
 
-> Browser automation + multi-provider web search for your Pi agent — with automatic screenshot audit trail (optional).
+> A fox doesn't knock on the door. It finds the gap in the fence, slips through, and comes back with exactly what you sent it for. Pi-Fox is that instinct for your agent — quiet, quick, and it always brings receipts.
 
 [![npm version](https://badge.fury.io/js/pi-fox.svg)](https://badge.fury.io/js/pi-fox)
 [![npm downloads](https://img.shields.io/npm/dw/pi-fox)](https://www.npmjs.com/package/pi-fox)
@@ -15,7 +15,9 @@
 
 ---
 
-Give your Pi coding agent a real browser and live web access. Every page it navigates to, every click it makes, is photographed automatically and saved to your local filesystem — so you can open that folder any time and see exactly what your agent saw. You stay in control: supervised mode is on by default, headless is on by default, and every setting can be changed by asking your agent or editing a single JSON file.
+Pi-Fox gives your pi agent a full [Playwright](https://playwright.dev/) browser (Firefox by default, Chromium and WebKit supported) and live web access through four search providers — Brave, Tavily, Exa, and Gemini — all with free tiers. Fetch pages, run searches, click through flows, extract clean readable text. Every move is photographed and saved to your local filesystem as an audit trail you can open any time.
+
+Under the hood it's a single TypeScript extension: a `ProviderImpl` registry for search backends, `withSupervisedScreenshot` wrapping every browser action, and `fetchJson` for all API calls — no curl, no shell-outs. Run headless by default; flip it visible when you want to watch it work. Change any setting by asking your agent or editing a single JSON file.
 
 ## Supervised mode
 
