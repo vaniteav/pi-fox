@@ -1808,6 +1808,7 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 				[
 					{ value: "switch",     label: "Switch active provider",                                            description: "Change which provider is used for web_search" },
 					{ value: "add",        label: "Add another provider",                                              description: "Configure an additional search provider" },
+					{ value: "add-custom", label: "Add custom provider",                                               description: "Wizard: add any search API without editing source" },
 					{ value: "remove",     label: "Remove a provider key",                                             description: "Clear a provider's key from settings.json" },
 					{ value: "headless",   label: `Headless: ${browserState.headless} → ${!browserState.headless}`,   description: "Toggle visible/invisible browser. Run /reload to apply." },
 					{ value: "supervised", label: `Supervised: ${browserState.supervised} → ${!browserState.supervised}`, description: "Auto-screenshot after each browser action." },
@@ -1833,6 +1834,10 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 				}
 				case "add": {
 					await runProviderAdd(ctx, providers);
+					break;
+				}
+				case "add-custom": {
+					await runCustomProviderWizard(ctx);
 					break;
 				}
 				case "remove": {
