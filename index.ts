@@ -66,7 +66,7 @@ const turndown = new TurndownService({
 
 // ── Type definitions ──
 
-type ProviderId = "brave" | "perplexity" | "tavily" | "exa" | "gemini";
+type ProviderId = "brave" | "perplexity" | "tavily" | "exa" | "gemini" | (string & {});
 
 /** Typed view of settings.json → browserExt block */
 interface ExtConfig {
@@ -79,6 +79,7 @@ interface ExtConfig {
 	supervised?: boolean;
 	headless?: boolean;
 	suppressStartupMessage?: boolean;
+	customProviders?: CustomProviderConfig[];
 }
 
 /** Settings snapshot — read once per tool call, passed everywhere. Zero extra disk reads. */
@@ -104,6 +105,16 @@ interface ProviderImpl {
 	signupUrl: string;
 	hasKey(config: Config): boolean;
 	search(query: string, n: number, config: Config): Promise<SearchResult>;
+}
+
+/** Config shape for a user-defined search provider stored in settings.json. */
+interface CustomProviderConfig {
+	id: string;
+	label: string;
+	envKey: string;
+	freeTier: string;
+	signupUrl: string;
+	transform: string;
 }
 
 interface BrowserState {
