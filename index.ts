@@ -566,8 +566,8 @@ function buildCustomProviderImpl(cfg: CustomProviderConfig): ProviderImpl {
 	};
 }
 
-/** To add a new provider: add one ProviderImpl object here. Nothing else changes. */
-const PROVIDER_REGISTRY: ProviderImpl[] = [
+/** Built-in providers. Custom providers from settings.json are appended at startup inside browserWebExtension(). */
+let PROVIDER_REGISTRY: ProviderImpl[] = [
 	braveProvider, tavilyProvider, exaProvider, geminiProvider, perplexityProvider,
 ];
 
@@ -711,6 +711,15 @@ const GetSearchContentParams = Type.Object({
 export default function browserWebExtension(pi: ExtensionAPI) {
 	// ── Load config once — passed to all tools that need settings ──
 	const config = loadConfig();
+
+	// Append any user-defined providers from settings.json → browserExt.customProviders
+	const customImpls = (config.ext.customProviders ?? []).map(buildCustomProviderImpl);
+	if (customImpls.length > 0) {
+		PROVIDER_REGISTRY = [
+			braveProvider, tavilyProvider, exaProvider, geminiProvider, perplexityProvider,
+			...customImpls,
+		];
+	}
 
 	// ── Browser state ──
 	const browserState: BrowserState = {
