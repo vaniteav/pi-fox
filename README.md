@@ -1,4 +1,6 @@
-# pi-web
+# pi-fox
+
+![Pi-Fox banner](https://raw.githubusercontent.com/vaniteav/pi-fox/main/docs/banner.png)
 
 > Browser automation + multi-provider web search for your Pi agent — with automatic screenshot audit trail (optional).
 
@@ -6,7 +8,7 @@ Give your Pi coding agent a real browser and live web access. Every page it navi
 
 ## Supervised mode
 
-Supervised mode is **on by default**. Every navigation, click, and interaction saves a screenshot to `~/Pictures/pi-web/sessions/<timestamp>/`. This is your audit trail — you can open that folder at any time and see a chronological record of everything your agent did in the browser.
+Supervised mode is **on by default**. Every navigation, click, and interaction saves a screenshot to `~/Pictures/pi-fox/sessions/<timestamp>/`. This is your audit trail — you can open that folder at any time and see a chronological record of everything your agent did in the browser.
 
 Once you trust the workflow, turn it off by setting `"supervised": false` in your `settings.json`, or by asking your agent: *"turn off supervised mode."*
 
@@ -14,19 +16,19 @@ Once you trust the workflow, turn it off by setting `"supervised": false` in you
 
 **Via npm (recommended):**
 ```bash
-pi install npm:pi-web
+pi install npm:pi-fox
 ```
 
 **Manual:**
 ```bash
-git clone https://github.com/vaniteav/pi-web
-cp -r pi-web ~/.pi/agent/extensions/
+git clone https://github.com/vaniteav/pi-fox
+cp -r pi-fox ~/.pi/agent/extensions/
 ```
 
 ## Setup
 
 ```bash
-pi -e ~/.pi/agent/extensions/pi-web/index.ts -p "Set up web search"
+pi -e ~/.pi/agent/extensions/pi-fox/index.ts -p "Set up web search"
 ```
 
 Then walk through the `/browser` wizard — it guides you through choosing a search provider and storing your API key.

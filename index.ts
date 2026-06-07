@@ -41,7 +41,7 @@
  *   First configured key becomes active. Use /web-switch to change at runtime.
  *
  * Usage:
- *   pi -e ~/.pi/agent/extensions/pi-web/index.ts
+ *   pi -e ~/.pi/agent/extensions/pi-fox/index.ts
  *   /browser    — first-run onboarding wizard
  *   /web-switch — switch active provider
  */
@@ -277,7 +277,7 @@ function getViewport(config: Config): { width: number; height: number } {
  */
 function ensureSessionDir(state: BrowserState): string {
 	if (!state.sessionDir) {
-		const base = join(homedir(), "Pictures", "pi-web", "sessions");
+		const base = join(homedir(), "Pictures", "pi-fox", "sessions");
 		const ts = new Date().toISOString().replace(/[:.]/g, "-").substring(0, 19);
 		state.sessionDir = join(base, ts);
 		mkdirSync(state.sessionDir, { recursive: true });
@@ -1889,11 +1889,11 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 
 		if (!suppress) {
 			const supervisedOn = browserState.supervised;
-			const screenshotPath = join(homedir(), "Pictures", "pi-web", "sessions");
+			const screenshotPath = join(homedir(), "Pictures", "pi-fox", "sessions");
 
 			if (supervisedOn) {
 				ctx.ui.notify(
-					`[pi-web] Supervised mode: ON\n` +
+					`[pi-fox] Supervised mode: ON\n` +
 					`  Screenshots saved to: ${screenshotPath}\n` +
 					`  To toggle: set browserExt.supervised = true/false in ~/.pi/agent/settings.json\n` +
 					`             — or just ask me to turn it on or off.\n` +
@@ -1903,7 +1903,7 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 				);
 			} else {
 				ctx.ui.notify(
-					`[pi-web] Supervised mode: OFF\n` +
+					`[pi-fox] Supervised mode: OFF\n` +
 					`  To enable automatic screenshots: set browserExt.supervised = true\n` +
 					`                                   — or just ask me to turn it on.\n` +
 					`  To hide this message: set browserExt.suppressStartupMessage = true\n` +
