@@ -183,6 +183,31 @@ async function fetchJson<T>(url: string, options?: {
 	}
 }
 
+// ── Wizard test capture ──
+
+/** Stores the last response captured by fetchJsonCapturing. Module-level — wizard steps are sequential. */
+let _lastCapturedRaw: unknown = null;
+
+/**
+ * Thin wrapper around fetchJson that records the raw response.
+ * Used only during the custom provider wizard test step.
+ * Never used in production search paths.
+ */
+async function fetchJsonCapturing<T>(
+	url: string,
+	options?: Parameters<typeof fetchJson>[1],
+): Promise<T> {
+	const result = await fetchJson<T>(url, options);
+	_lastCapturedRaw = result;
+	return result;
+}
+
+function getLastCapturedRaw(): unknown {
+	const val = _lastCapturedRaw;
+	_lastCapturedRaw = null;
+	return val;
+}
+
 // ── Tool helpers ──
 
 /** Standard error response — replaces 19 duplicated error construction blocks. */
