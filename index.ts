@@ -53,6 +53,7 @@ import { join } from "node:path";
 import { homedir } from "node:os";
 import TurndownService from "turndown";
 
+// Stateless singleton — do not call addRule() here; create a new instance for per-call customization.
 const turndown = new TurndownService({
 	headingStyle: "atx",
 	codeBlockStyle: "fenced",
@@ -602,7 +603,7 @@ async function fetchUrlContent(url: string): Promise<{ title: string; content: s
 
 		let text: string;
 		try {
-			text = turndown.turndown(cleaned);
+			text = turndown.turndown(cleaned).trim();
 		} catch {
 			// Fallback: basic tag strip if Turndown fails on malformed HTML
 			text = cleaned
