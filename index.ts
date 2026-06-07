@@ -1665,6 +1665,24 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 		return true;
 	}
 
+	function saveCustomProvider(meta: ProviderMeta, transformSrc: string): void {
+		const cfg = loadConfig();
+		const existing = cfg.ext.customProviders ?? [];
+		const newProvider: CustomProviderConfig = {
+			id: meta.id,
+			label: meta.label,
+			envKey: meta.envKey,
+			freeTier: meta.freeTier,
+			signupUrl: meta.signupUrl,
+			transform: transformSrc,
+		};
+		// Replace if ID already exists, otherwise append
+		const updated = existing.some(p => p.id === meta.id)
+			? existing.map(p => p.id === meta.id ? newProvider : p)
+			: [...existing, newProvider];
+		patchExtConfig({ customProviders: updated });
+	}
+
 	pi.registerCommand("browser", {
 		description: "Browser status, onboarding wizard, and usage help",
 		handler: async (_args, ctx) => {
