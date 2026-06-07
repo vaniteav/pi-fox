@@ -46,7 +46,7 @@ cp -r pi-fox ~/.pi/agent/extensions/
 pi -e ~/.pi/agent/extensions/pi-fox/index.ts -p "Set up web search"
 ```
 
-Then walk through the `/browser` wizard — it guides you through choosing a search provider and storing your API key.
+Then walk through the `/search` wizard — it guides you through choosing a search provider and storing your API key.
 
 ## Search providers
 
@@ -92,8 +92,8 @@ All providers have free tiers — you only need one. The first key you configure
 
 ## Commands
 
-- `/browser` — Setup wizard + provider management: shows current config, detects configured keys, and lets you add, switch, or remove providers.
-- `/web-switch` — Switch the active search provider at runtime without restarting.
+- `/browser` — Browser status and settings: engine, headless mode, supervised mode.
+- `/search` — Search provider management: status, switch, add, remove, and onboarding wizard. Use `/search <provider-id>` to switch instantly at runtime (e.g. `/search brave`).
 
 ## Configuration
 
