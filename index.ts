@@ -20,7 +20,7 @@
  *
  * ── Commands ──
  *   /browser       — Onboarding wizard, provider status, and usage help
- *   /web-switch    — Switch active search provider on the fly
+ *   /search        — Search provider management (hub + /search <id> quick switch)
  *
  * Configuration — set ONE or MORE:
  *
@@ -38,12 +38,12 @@
  *     EXA_API_KEY        — Exa              (free: 2,500/mo)
  *     GEMINI_API_KEY     — Google Gemini    (free tier) — prepaid credits depleted
  *
- *   First configured key becomes active. Use /web-switch to change at runtime.
+ *   First configured key becomes active. Use /search to manage providers at runtime.
  *
  * Usage:
  *   pi -e ~/.pi/agent/extensions/pi-fox/index.ts
  *   /browser    — first-run onboarding wizard
- *   /web-switch — switch active provider
+ *   /search     — search provider management
  */
 
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
@@ -440,7 +440,7 @@ const NO_PROVIDER_MSG =
 	"  Exa (2,500/mo)       https://exa.ai/\n" +
 	"  Gemini (free tier)   https://aistudio.google.com/app/apikey\n" +
 	"  Perplexity (paid)    https://www.perplexity.ai/settings/api\n\n" +
-	"Run /browser for the interactive setup wizard.";
+	"Run /search for the interactive setup wizard.";
 
 const braveProvider: ProviderImpl = {
 	id: "brave", label: "Brave Search", envKey: "BRAVE_API_KEY",
@@ -1116,7 +1116,7 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 			"Search the web using Brave, Perplexity, Tavily, Exa, or Gemini. Returns an AI-synthesized answer with source citations. " +
 			"For comprehensive research, prefer queries (plural) with 2-4 varied angles over a single query. " +
 			"Provider auto-selects from configured API keys. " +
-			"Run /browser for the setup wizard, or set a key via env var or settings.json.",
+			"Run /search for the setup wizard, or set a key via env var or settings.json.",
 		promptSnippet: "Use for web research questions. Prefer {queries:[...]} with 2-4 varied angles over a single query.",
 		parameters: WebSearchParams,
 		async execute(_toolCallId, params) {
@@ -1721,7 +1721,7 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 				if (retryPassed) {
 					saveCustomProvider(meta, retryTransform);
 				} else {
-					ctx.ui.notify("Still failing. Saving anyway — run /browser → Remove to undo.", "warning");
+					ctx.ui.notify("Still failing. Saving anyway — run /search → Remove to undo.", "warning");
 					saveCustomProvider(meta, retryTransform);
 				}
 			} else if (retry === "save") {
@@ -1736,7 +1736,7 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 
 		ctx.ui.notify(
 			`✓ ${meta.label} saved to settings.json.\n` +
-			`Run /reload to activate it. It will appear in /web-switch and the provider fallback chain.`,
+			`Run /reload to activate it. It will appear in /search and the provider fallback chain.`,
 			"info",
 		);
 	}
@@ -1916,7 +1916,7 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 		if (!active) {
 			ctx.ui.notify(
 				"⚠ No search key configured. web_search and code_search are disabled.\n" +
-				"Run /browser for the setup wizard (Brave Search = free, 2,000 queries/mo).",
+				"Run /search for the setup wizard (Brave Search = free, 2,000 queries/mo).",
 				"warning",
 			);
 		}
