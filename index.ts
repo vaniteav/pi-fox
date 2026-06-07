@@ -1582,6 +1582,89 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 		}
 	}
 
+	async function runTestTransform(
+		ctx: Parameters<typeof runProviderSwitch>[0],
+		meta: ProviderMeta,
+		transformSrc: string,
+	): Promise<boolean> {
+		ctx.ui.notify("── Step 3 of 3: Test ──", "info");
+		ctx.ui.notify("Compiling transform...", "info");
+
+		type TransformFn = (q: string, n: number, k: string, f: typeof fetchJson) => Promise<SearchResult>;
+		let fn: TransformFn;
+		try {
+			fn = new Function(
+				"query", "n", "apiKey", "fetchJson",
+				`return (${transformSrc})(query, n, apiKey, fetchJson)`
+			) as TransformFn;
+		} catch (err) {
+			ctx.ui.notify(
+				`✗ Compile error — fix the syntax in your transform file:\n  ${err instanceof Error ? err.message : String(err)}`,
+				"warning",
+			);
+			return false;
+		}
+
+		ctx.ui.notify("Syntax OK. Running live test search for \"test\"...", "info");
+
+		const cfg = loadConfig();
+		const apiKey = String(
+			(cfg.ext as Record<string, unknown>)[meta.envKey] ||
+			process.env[meta.envKey] || ""
+		);
+
+		if (!apiKey) {
+			ctx.ui.notify(
+				`✗ No API key found for ${meta.envKey}.\n` +
+				`  Add it to ~/.pi/agent/settings.json → browserExt → "${meta.envKey}"`,
+				"warning",
+			);
+			return false;
+		}
+
+		let result: SearchResult;
+		try {
+			result = await fn("test", 3, apiKey, fetchJsonCapturing as typeof fetchJson);
+		} catch (err) {
+			ctx.ui.notify(
+				`✗ Runtime error:\n  ${err instanceof Error ? err.message : String(err)}`,
+				"warning",
+			);
+			return false;
+		}
+
+		const raw = getLastCapturedRaw();
+		ctx.ui.notify("RAW API RESPONSE:", "info");
+		ctx.ui.notify(JSON.stringify(raw, null, 2).substring(0, 2000), "info");
+
+		ctx.ui.notify("\nMAPPED OUTPUT:", "info");
+		ctx.ui.notify(`answer: "${result.answer}"`, "info");
+		if (result.results.length === 0) {
+			ctx.ui.notify("✗ results: [] — empty! Check your results array field name.", "warning");
+			return false;
+		}
+		result.results.forEach((r, i) => {
+			ctx.ui.notify(
+				`${i + 1}. ${r.title || "⚠ MISSING TITLE"}\n   ${r.url || "⚠ MISSING URL"}\n   ${r.snippet || "(no snippet)"}`,
+				"info",
+			);
+		});
+
+		const missingTitle = result.results.some(r => !r.title);
+		const missingUrl = result.results.some(r => !r.url);
+		if (missingTitle || missingUrl) {
+			ctx.ui.notify(
+				`✗ Some results are missing ${[missingTitle && "title", missingUrl && "url"].filter(Boolean).join(" and ")}.\n` +
+				`  Check your field mappings in the transform.`,
+				"warning",
+			);
+			return false;
+		}
+
+		ctx.ui.notify(`✓ ${result.results.length} results mapped successfully.`, "info");
+		return true;
+	}
+
 	pi.registerCommand("browser", {
 		description: "Browser status, onboarding wizard, and usage help",
 		handler: async (_args, ctx) => {
