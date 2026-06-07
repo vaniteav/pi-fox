@@ -15,15 +15,17 @@
 
 ---
 
-Pi-Fox gives your pi agent a full [Playwright](https://playwright.dev/) browser (Firefox by default, Chromium and WebKit supported) and live web access through four search providers — Brave, Tavily, Exa, and Gemini — all with free tiers. Fetch pages, run searches, click through flows, extract clean readable text. Every move is photographed and saved to your local filesystem as an audit trail you can open any time.
+Pi-Fox gives your pi agent a full [Playwright](https://playwright.dev/) browser (Firefox by default, Chromium and WebKit supported) — no API key required. Navigate pages, click, type, screenshot, and extract clean readable text out of the box. When you want web search too, drop in a key for any of four providers — Brave, Tavily, Exa, or Gemini — all with free tiers.
 
-Under the hood it's a single TypeScript extension: a `ProviderImpl` registry for search backends, `withSupervisedScreenshot` wrapping every browser action, and `fetchJson` for all API calls — no curl, no shell-outs. Run headless by default; flip it visible when you want to watch it work. Change any setting by asking your agent or editing a single JSON file.
+Every move is photographed and saved to your local filesystem as an audit trail you can open any time. Run headless by default; flip it visible when you want to watch it work. Change any setting by asking your agent or editing a single JSON file.
+
+Under the hood it's a single TypeScript extension: a `ProviderImpl` registry for search backends, `withSupervisedScreenshot` wrapping every browser action, and `fetchJson` for all API calls — no curl, no shell-outs.
 
 ## Supervised mode
 
-Supervised mode is **on by default**. Every navigation, click, and interaction saves a screenshot to `~/Pictures/pi-fox/sessions/<timestamp>/`. This is your audit trail — you can open that folder at any time and see a chronological record of everything your agent did in the browser.
+Screenshots are saved to `~/Pictures/pi-fox/sessions/<timestamp>/` after every navigation, click, and interaction — a chronological record of everything your agent did in the browser. Supervised mode is **on by default**.
 
-Once you trust the workflow, turn it off by setting `"supervised": false` in your `settings.json`, or by asking your agent: *"turn off supervised mode."*
+Once you trust the workflow, turn it off by setting `"supervised": false` in your `settings.json`, or just ask your agent: *"turn off supervised mode."*
 
 ## Install
 
