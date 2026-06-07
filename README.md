@@ -1,6 +1,6 @@
 <div align="center">
 
-![Pi-Fox banner](docs/banner.png)
+<img src="docs/banner.png" alt="Pi-Fox banner" width="100%">
 
 # pi-fox
 
