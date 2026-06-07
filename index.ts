@@ -51,6 +51,13 @@ import { Type } from "typebox";
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
+import TurndownService from "turndown";
+
+const turndown = new TurndownService({
+	headingStyle: "atx",
+	codeBlockStyle: "fenced",
+	bulletListMarker: "-",
+});
 
 // ===========================================================================
 // SECTION 0 — Core Types & Utilities
@@ -587,20 +594,29 @@ async function fetchUrlContent(url: string): Promise<{ title: string; content: s
 		const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
 		const title = titleMatch?.[1]?.trim() ?? url;
 
-		// Strip scripts, styles, tags; decode common HTML entities (&amp; last to avoid double-decode)
-		const text = html
+		// Strip non-content tags before Turndown conversion
+		const cleaned = html
 			.replace(/<script[\s\S]*?<\/script>/gi, "")
 			.replace(/<style[\s\S]*?<\/style>/gi, "")
-			.replace(/<noscript[\s\S]*?<\/noscript>/gi, "")
-			.replace(/<[^>]+>/g, " ")
-			.replace(/&nbsp;/g, " ")
-			.replace(/&lt;/g, "<")
-			.replace(/&gt;/g, ">")
-			.replace(/&quot;/g, '"')
-			.replace(/&#39;/g, "'")
-			.replace(/&amp;/g, "&")
-			.replace(/\s+/g, " ")
-			.trim();
+			.replace(/<noscript[\s\S]*?<\/noscript>/gi, "");
+
+		let text: string;
+		try {
+			text = turndown.turndown(cleaned);
+		} catch {
+			// Fallback: basic tag strip if Turndown fails on malformed HTML
+			text = cleaned
+				.replace(/<[^>]+>/g, " ")
+				.replace(/&nbsp;/g, " ")
+				.replace(/&lt;/g, "<")
+				.replace(/&gt;/g, ">")
+				.replace(/&quot;/g, '"')
+				.replace(/&#39;/g, "'")
+				.replace(/&amp;/g, "&")
+				.replace(/\s+/g, " ")
+				.trim();
+			text = "[Note: Markdown conversion failed — plain text fallback]\n\n" + text;
+		}
 
 		return { title, content: text };
 	} catch (err) {
