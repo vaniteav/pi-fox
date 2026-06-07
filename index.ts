@@ -1683,6 +1683,64 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 		patchExtConfig({ customProviders: updated });
 	}
 
+	async function runCustomProviderWizard(
+		ctx: Parameters<typeof runProviderSwitch>[0],
+	): Promise<void> {
+		ctx.ui.notify(
+			"Custom Provider Wizard\n" +
+			"─────────────────────\n" +
+			"Add any search API without editing source code.\n" +
+			"You will need: an API key, and a JS transform function.\n" +
+			"The wizard will guide you through 3 steps.",
+			"info",
+		);
+
+		const meta = await runCollectProviderMeta(ctx);
+		if (!meta) {
+			ctx.ui.notify("Wizard cancelled.", "info");
+			return;
+		}
+
+		const transformSrc = await runCollectTransform(ctx, meta);
+		if (!transformSrc) {
+			ctx.ui.notify("Wizard cancelled.", "info");
+			return;
+		}
+
+		const passed = await runTestTransform(ctx, meta, transformSrc);
+		if (!passed) {
+			const retry = await ctx.ui.select("Test failed. What would you like to do?", [
+				{ value: "retry", label: "Edit transform and retry", description: `Re-edit ${TRANSFORM_DRAFT_PATH} then try again` },
+				{ value: "save", label: "Save anyway", description: "Save the untested transform — it may not work" },
+				{ value: "cancel", label: "Cancel", description: "Exit without saving" },
+			]);
+			if (retry === "retry") {
+				const retryTransform = await runCollectTransform(ctx, meta);
+				if (!retryTransform) return;
+				const retryPassed = await runTestTransform(ctx, meta, retryTransform);
+				if (retryPassed) {
+					saveCustomProvider(meta, retryTransform);
+				} else {
+					ctx.ui.notify("Still failing. Saving anyway — run /browser → Remove to undo.", "warning");
+					saveCustomProvider(meta, retryTransform);
+				}
+			} else if (retry === "save") {
+				saveCustomProvider(meta, transformSrc);
+			} else {
+				ctx.ui.notify("Cancelled — nothing saved.", "info");
+				return;
+			}
+		} else {
+			saveCustomProvider(meta, transformSrc);
+		}
+
+		ctx.ui.notify(
+			`✓ ${meta.label} saved to settings.json.\n` +
+			`Run /reload to activate it. It will appear in /web-switch and the provider fallback chain.`,
+			"info",
+		);
+	}
+
 	pi.registerCommand("browser", {
 		description: "Browser status, onboarding wizard, and usage help",
 		handler: async (_args, ctx) => {
