@@ -4,7 +4,15 @@
   "description": "Browser automation + multi-provider web search for your Pi agent — with automatic screenshot audit trail (optional).",
   "main": "index.ts",
   "scripts": {},
-  "keywords": ["pi-extension", "browser", "playwright", "firefox", "web-search", "content-fetch", "supervised-mode"],
+  "keywords": [
+    "pi-extension",
+    "browser",
+    "playwright",
+    "firefox",
+    "web-search",
+    "content-fetch",
+    "supervised-mode"
+  ],
   "author": "vanitea",
   "license": "MIT",
   "type": "commonjs",
@@ -12,13 +20,18 @@
     "@earendil-works/pi-coding-agent": "*"
   },
   "dependencies": {
-    "playwright": "^1.60.0",
     "@mozilla/readability": "^0.6.0",
     "linkedom": "^0.18.12",
     "p-limit": "^7.3.0",
+    "playwright": "^1.60.0",
     "turndown": "^7.2.4"
   },
   "pi": {
-    "extensions": ["./index.ts"]
+    "extensions": [
+      "./index.ts"
+    ]
+  },
+  "devDependencies": {
+    "@types/turndown": "^5.0.6"
   }
 }
