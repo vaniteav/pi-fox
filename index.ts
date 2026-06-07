@@ -1514,6 +1514,74 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 		};
 	}
 
+	const TRANSFORM_DRAFT_PATH = join(homedir(), ".pi", "web-cache", "custom-provider-draft.js");
+
+	async function runCollectTransform(
+		ctx: Parameters<typeof runProviderSwitch>[0],
+		meta: ProviderMeta,
+	): Promise<string | null> {
+		ctx.ui.notify("── Step 2 of 3: Write the transform ──", "info");
+
+		const template =
+			`// Transform for ${meta.label}\n` +
+			`// Signature: async function(query, n, apiKey, fetchJson)\n` +
+			`// Return:    { answer: string, results: Array<{ title, url, snippet }> }\n` +
+			`//\n` +
+			`// 'fetchJson' is provided — use it for all HTTP calls (handles timeout + errors).\n` +
+			`// Example fetchJson call:\n` +
+			`//   const data = await fetchJson("https://api.example.com/search?q=" + encodeURIComponent(query), {\n` +
+			`//     headers: { "Authorization": "Bearer " + apiKey }\n` +
+			`//   });\n\n` +
+			`async function(query, n, apiKey, fetchJson) {\n` +
+			`  const data = await fetchJson("YOUR_ENDPOINT_URL?q=" + encodeURIComponent(query), {\n` +
+			`    headers: { "Authorization": "Bearer " + apiKey }\n` +
+			`  });\n` +
+			`  return {\n` +
+			`    answer: data.YOUR_ANSWER_FIELD || "",\n` +
+			`    results: (data.YOUR_RESULTS_ARRAY || []).slice(0, n).map(r => ({\n` +
+			`      title: r.YOUR_TITLE_FIELD,\n` +
+			`      url:   r.YOUR_URL_FIELD,\n` +
+			`      snippet: r.YOUR_SNIPPET_FIELD || ""\n` +
+			`    }))\n` +
+			`  };\n` +
+			`}\n`;
+
+		mkdirSync(join(homedir(), ".pi", "web-cache"), { recursive: true });
+		writeFileSync(TRANSFORM_DRAFT_PATH, template, "utf-8");
+
+		ctx.ui.notify(`Transform template written to:\n  ${TRANSFORM_DRAFT_PATH}`, "info");
+		ctx.ui.notify("Edit it with any editor, or ask your pi agent:", "info");
+		ctx.ui.notify(
+			"─────────────────────────────────────────\n" +
+			"Need help writing the transform? Ask your pi agent:\n\n" +
+			`  "I'm adding a custom search provider called ${meta.label}.\n` +
+			`   Here is the API documentation / endpoint: [paste docs or endpoint URL]\n\n` +
+			`   Write a transform function with this exact signature:\n` +
+			`     async function(query, n, apiKey, fetchJson)\n\n` +
+			`   Where fetchJson(url, options) handles the HTTP call.\n` +
+			`   It must return:\n` +
+			`     { answer: string, results: Array<{ title: string, url: string, snippet: string }> }\n\n` +
+			`   Save the completed function to:\n` +
+			`     ${TRANSFORM_DRAFT_PATH}"\n` +
+			"─────────────────────────────────────────",
+			"info",
+		);
+
+		const action = await ctx.ui.select("When your transform is ready:", [
+			{ value: "done", label: "Done — I've edited the file", description: "Proceed to test" },
+			{ value: "cancel", label: "Cancel", description: "Exit wizard without saving" },
+		]);
+
+		if (action !== "done") return null;
+
+		try {
+			return readFileSync(TRANSFORM_DRAFT_PATH, "utf-8").trim();
+		} catch {
+			ctx.ui.notify(`Could not read transform file at ${TRANSFORM_DRAFT_PATH}`, "warning");
+			return null;
+		}
+	}
+
 	pi.registerCommand("browser", {
 		description: "Browser status, onboarding wizard, and usage help",
 		handler: async (_args, ctx) => {
