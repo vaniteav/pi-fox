@@ -1388,13 +1388,20 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 				description: p.freeTier !== "—" ? `Free: ${p.freeTier}` : "Paid",
 			})),
 		);
-		if (newProvider) {
-			patchExtConfig({ activeProvider: newProvider as ProviderId });
-			ctx.ui.notify(
-				`Active provider switched to ${PROVIDER_REGISTRY.find(p => p.id === newProvider)?.label}. Run /reload to apply.`,
-				"info",
-			);
+		if (!newProvider || newProvider === "cancel") return;
+
+		// Load current config for comparison
+		const currentCfg = loadConfig();
+		if (newProvider === currentCfg.ext.activeProvider) {
+			ctx.ui.notify("Already using that provider.", "info");
+			return;
 		}
+
+		patchExtConfig({ activeProvider: newProvider as ProviderId });
+		ctx.ui.notify(
+			`Active provider switched to ${PROVIDER_REGISTRY.find(p => p.id === newProvider)?.label}. Run /reload to apply.`,
+			"info",
+		);
 	}
 
 	async function runProviderAdd(
