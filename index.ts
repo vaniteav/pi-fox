@@ -1742,10 +1742,10 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 	}
 
 	pi.registerCommand("browser", {
-		description: "Browser status, onboarding wizard, and usage help",
+		description: "Browser status and settings (headless, supervised)",
 		handler: async (_args, ctx) => {
 			const cfg = loadConfig();
-			const { providers, active } = getActiveConfig(cfg);
+			const { active } = getActiveConfig(cfg);
 
 			// ── Status block ──
 			const running = browserState.browser !== null && browserState.page !== null && !browserState.page.isClosed();
@@ -1758,67 +1758,23 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 				`Supervised: ${browserState.supervised}`,
 				`Session active: ${running}`,
 				running ? `Current page: ${title}\nURL: ${url}` : "",
-				active ? `Active Search Provider: ${active.id} (${active.label})` : "Active Search Provider: NONE",
-				`Configured Providers: ${providers.length > 0 ? providers.map(p => p.id).join(", ") : "none"}`,
+				`Search: ${active?.id ?? "none configured — run /search"}`,
 				browserState.supervised && browserState.sessionDir ? `Screenshot dir: ${browserState.sessionDir}` : "",
 			].filter(Boolean).join("\n");
 			ctx.ui.notify(status, "info");
 
-			// ── Onboarding prompt if no providers configured ──
-			if (providers.length === 0) {
-				ctx.ui.notify("", "info");
-				ctx.ui.notify("⚠ No search providers configured. web_search and code_search are disabled.", "warning");
-				ctx.ui.notify("", "info");
-
-				const choice = await ctx.ui.select(
-					"Would you like to configure a search provider?",
-					[
-						{ value: "brave",       label: "Brave Search — FREE (2,000 queries/mo)",  description: "Best free option. Sign up at brave.com/search/api/" },
-						{ value: "tavily",      label: "Tavily — FREE (1,000 queries/mo)",        description: "Designed for AI agents. Sign up at app.tavily.com" },
-						{ value: "exa",         label: "Exa — FREE tier (2,500 queries/mo)",      description: "Sign up at exa.ai" },
-						{ value: "gemini",      label: "Google Gemini — free tier",               description: "Get key at aistudio.google.com/app/apikey" },
-						{ value: "perplexity",  label: "Perplexity AI — paid",                    description: "Get key at perplexity.ai/settings/api" },
-						{ value: "skip",        label: "Skip — configure later",                  description: "You can run /browser again anytime" },
-					],
-				);
-
-				if (choice && choice !== "skip") {
-					const def = PROVIDER_REGISTRY.find(p => p.id === choice);
-					if (def) {
-						ctx.ui.notify(`To use ${def.label}:`, "info");
-						ctx.ui.notify(`1. Get a free key: ${def.signupUrl}`, "info");
-						ctx.ui.notify(`2. Set it via one of these methods:`, "info");
-						ctx.ui.notify(`   Shell (current session):   export ${def.envKey}="your-key-here"`, "info");
-						ctx.ui.notify(`   Shell (persistent):        Add the above to ~/.bashrc`, "info");
-						ctx.ui.notify(`   Windows (persistent):      setx ${def.envKey} "your-key-here"`, "info");
-						ctx.ui.notify(`   Pi settings (persistent):  Edit ~/.pi/agent/settings.json:`, "info");
-						ctx.ui.notify(`     { "browserExt": { "${def.envKey}": "your-key-here", "activeProvider": "${def.id}" } }`, "info");
-						ctx.ui.notify(`3. Restart pi or run /reload for the key to take effect.`, "info");
-					}
-				} else {
-					ctx.ui.notify("Skipped. Run /browser anytime to configure a provider.", "info");
-				}
-				return;
-			}
-
-			// ── Management menu (at least one provider configured) ──
-			// BUG-6 fix: headless and supervised are now offered as selectable options
+			// ── Settings menu ──
 			const choice = await ctx.ui.select(
-				`${active ? `Active: ${active.label}` : "No active provider"} · ${providers.length} configured · Options:`,
+				"Browser settings:",
 				[
-					{ value: "switch",     label: "Switch active provider",                                            description: "Change which provider is used for web_search" },
-					{ value: "add",        label: "Add another provider",                                              description: "Configure an additional search provider" },
-					{ value: "add-custom", label: "Add custom provider",                                               description: "Wizard: add any search API without editing source" },
-					{ value: "remove",     label: "Remove a provider key",                                             description: "Clear a provider's key from settings.json" },
-					{ value: "headless",   label: `Headless: ${browserState.headless} → ${!browserState.headless}`,   description: "Toggle visible/invisible browser. Run /reload to apply." },
-					{ value: "supervised", label: `Supervised: ${browserState.supervised} → ${!browserState.supervised}`, description: "Auto-screenshot after each browser action." },
-					{ value: "done",       label: "Done — status only",                                                description: "Exit wizard" },
+					{ value: "headless",   label: `Headless: ${browserState.headless} → ${!browserState.headless}`,       description: "Toggle visible/invisible browser. Run /reload to apply." },
+					{ value: "supervised", label: `Supervised: ${browserState.supervised} → ${!browserState.supervised}`, description: "Auto-screenshot after each browser action. Run /reload to apply." },
+					{ value: "done",       label: "Done",                                                                   description: "Exit" },
 				],
 			);
 
 			switch (choice) {
 				case "headless": {
-					// BUG-3 fix: patchExtConfig writes headless; getHeadless() now reads it
 					patchExtConfig({ headless: !browserState.headless });
 					ctx.ui.notify(`Headless set to ${!browserState.headless}. Run /reload to apply.`, "info");
 					break;
@@ -1828,23 +1784,6 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 					ctx.ui.notify(`Supervised mode ${!browserState.supervised ? "ON" : "OFF"}. Run /reload to apply.`, "info");
 					break;
 				}
-				case "switch": {
-					await runProviderSwitch(ctx, providers);
-					break;
-				}
-				case "add": {
-					await runProviderAdd(ctx, providers);
-					break;
-				}
-				case "add-custom": {
-					await runCustomProviderWizard(ctx);
-					break;
-				}
-				case "remove": {
-					await runProviderRemove(ctx, cfg, providers);
-					break;
-				}
-				// "done" falls through with no action — correct
 			}
 		},
 	});
