@@ -1351,6 +1351,75 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 	// COMMANDS
 	// =======================================================================
 
+	async function runProviderSwitch(
+		ctx: ExtensionContext,
+		providers: ProviderImpl[],
+	): Promise<void> {
+		const newProvider = await ctx.ui.select(
+			"Switch active provider to:",
+			providers.map(p => ({
+				value: p.id,
+				label: p.label,
+				description: p.freeTier !== "—" ? `Free: ${p.freeTier}` : "Paid",
+			})),
+		);
+		if (newProvider) {
+			patchExtConfig({ activeProvider: newProvider as ProviderId });
+			ctx.ui.notify(
+				`Active provider switched to ${PROVIDER_REGISTRY.find(p => p.id === newProvider)?.label}. Run /reload to apply.`,
+				"info",
+			);
+		}
+	}
+
+	async function runProviderAdd(
+		ctx: ExtensionContext,
+		providers: ProviderImpl[],
+	): Promise<void> {
+		const unconfigured = PROVIDER_REGISTRY.filter(p => !providers.some(c => c.id === p.id));
+		if (!unconfigured.length) {
+			ctx.ui.notify("All providers are already configured.", "info");
+			return;
+		}
+		const provider = await ctx.ui.select(
+			"Add provider:",
+			unconfigured.map(p => ({
+				value: p.id,
+				label: p.label,
+				description: p.freeTier !== "—" ? `Free: ${p.freeTier}` : "Paid",
+			})),
+		);
+		if (provider) {
+			const def = PROVIDER_REGISTRY.find(p => p.id === provider)!;
+			ctx.ui.notify(`To add ${def.label}:`, "info");
+			ctx.ui.notify(`1. Get a key: ${def.signupUrl}`, "info");
+			ctx.ui.notify(`   Shell:        export ${def.envKey}="your-key-here"`, "info");
+			ctx.ui.notify(`   Pi settings:  ~/.pi/agent/settings.json → { "browserExt": { "${def.envKey}": "..." } }`, "info");
+			ctx.ui.notify(`2. Run /reload to activate.`, "info");
+		}
+	}
+
+	async function runProviderRemove(
+		ctx: ExtensionContext,
+		cfg: Config,
+		providers: ProviderImpl[],
+	): Promise<void> {
+		const toRemove = await ctx.ui.select(
+			"Remove provider:",
+			providers.map(p => ({ value: p.id, label: p.label })),
+		);
+		if (toRemove) {
+			const def = PROVIDER_REGISTRY.find(p => p.id === toRemove)!;
+			const remaining = providers.filter(p => p.id !== toRemove);
+			const patch: Partial<ExtConfig> = { [def.envKey]: undefined } as Partial<ExtConfig>;
+			if (cfg.ext.activeProvider === toRemove) {
+				patch.activeProvider = remaining[0]?.id as ProviderId | undefined;
+			}
+			patchExtConfig(patch);
+			ctx.ui.notify(`${def.label} removed. Run /reload to apply.`, "info");
+		}
+	}
+
 	pi.registerCommand("browser", {
 		description: "Browser status, onboarding wizard, and usage help",
 		handler: async (_args, ctx) => {
@@ -1438,49 +1507,15 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 					break;
 				}
 				case "switch": {
-					const newProvider = await ctx.ui.select("Switch active provider to:", providers.map(p => ({
-						value: p.id, label: p.label, description: p.freeTier !== "—" ? `Free: ${p.freeTier}` : "Paid",
-					})));
-					if (newProvider) {
-						patchExtConfig({ activeProvider: newProvider as ProviderId });
-						ctx.ui.notify(`Active provider switched to ${PROVIDER_REGISTRY.find(p => p.id === newProvider)?.label}. Run /reload to apply.`, "info");
-					}
+					await runProviderSwitch(ctx, providers);
 					break;
 				}
 				case "add": {
-					const unconfigured = PROVIDER_REGISTRY.filter(p => !providers.some(c => c.id === p.id));
-					if (!unconfigured.length) {
-						ctx.ui.notify("All providers are already configured.", "info");
-						break;
-					}
-					const provider = await ctx.ui.select("Add provider:", unconfigured.map(p => ({
-						value: p.id, label: p.label, description: p.freeTier !== "—" ? `Free: ${p.freeTier}` : "Paid",
-					})));
-					if (provider) {
-						const def = PROVIDER_REGISTRY.find(p => p.id === provider)!;
-						ctx.ui.notify(`To add ${def.label}:`, "info");
-						ctx.ui.notify(`1. Get a key: ${def.signupUrl}`, "info");
-						ctx.ui.notify(`   Shell:        export ${def.envKey}="your-key-here"`, "info");
-						ctx.ui.notify(`   Pi settings:  ~/.pi/agent/settings.json → { "browserExt": { "${def.envKey}": "..." } }`, "info");
-						ctx.ui.notify(`3. Run /reload to activate.`, "info");
-					}
+					await runProviderAdd(ctx, providers);
 					break;
 				}
 				case "remove": {
-					const toRemove = await ctx.ui.select("Remove provider:", providers.map(p => ({
-						value: p.id, label: p.label,
-					})));
-					if (toRemove) {
-						const def = PROVIDER_REGISTRY.find(p => p.id === toRemove)!;
-						const remaining = providers.filter(p => p.id !== toRemove);
-						// Build patch: remove the key and update activeProvider if needed
-						const patch: Partial<ExtConfig> = { [def.envKey]: undefined } as Partial<ExtConfig>;
-						if (cfg.ext.activeProvider === toRemove) {
-							patch.activeProvider = remaining[0]?.id;
-						}
-						patchExtConfig(patch);
-						ctx.ui.notify(`${def.label} removed. Run /reload to apply.`, "info");
-					}
+					await runProviderRemove(ctx, cfg, providers);
 					break;
 				}
 				// "done" falls through with no action — correct
