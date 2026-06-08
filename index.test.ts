@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { EventEmitter } from 'events';
 import { Type } from '@sinclair/typebox';
 import { Value } from '@sinclair/typebox/value';
-import { attachPageCapture } from './index';
+import { attachPageCapture, filterConsoleLogs } from './index';
 
 // These will fail until the types and exports are added to index.ts
 // Import will be added once exports exist — for now test the shape inline
@@ -103,6 +103,32 @@ describe('attachPageCapture', () => {
 
     expect(dismissed.called).toBe(true);
     expect(state.pendingDialog).toBeNull();
+  });
+});
+
+describe('filterConsoleLogs', () => {
+  const logs = [
+    { type: 'log', text: 'hello', timestamp: 1 },
+    { type: 'error', text: 'boom', timestamp: 2 },
+    { type: 'warning', text: 'careful', timestamp: 3 },
+    { type: 'log', text: 'world', timestamp: 4 },
+  ];
+
+  it('returns all when type is "all"', () => {
+    expect(filterConsoleLogs(logs, 'all', 50)).toHaveLength(4);
+  });
+
+  it('filters by type', () => {
+    const result = filterConsoleLogs(logs, 'error', 50);
+    expect(result).toHaveLength(1);
+    expect(result[0].text).toBe('boom');
+  });
+
+  it('respects limit by taking the most recent', () => {
+    const result = filterConsoleLogs(logs, 'all', 2);
+    expect(result).toHaveLength(2);
+    expect(result[0].text).toBe('careful');
+    expect(result[1].text).toBe('world');
   });
 });
 

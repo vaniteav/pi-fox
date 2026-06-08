@@ -401,6 +401,15 @@ export function attachPageCapture(
 	});
 }
 
+export function filterConsoleLogs(
+	logs: ConsoleEntry[],
+	type: string | undefined,
+	limit: number
+): ConsoleEntry[] {
+	const filtered = type && type !== "all" ? logs.filter(e => e.type === type) : logs;
+	return filtered.slice(-limit);
+}
+
 // ── Browser tool schemas ──
 
 const NavigateParams = Type.Object({
@@ -1340,6 +1349,35 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 			} catch (err) {
 				const msg = err instanceof Error ? err.message : String(err);
 				return toolError(`Scroll failed: ${msg}`, { selector: params.selector });
+			}
+		},
+	});
+
+	pi.registerTool({
+		name: "browser_console",
+		label: "Browser Console",
+		description: "Read captured browser console logs. Logs are collected automatically from the moment the browser launches.",
+		promptSnippet: "Read browser console logs",
+		promptGuidelines: [
+			"Use type 'error' to check for JavaScript errors on the page.",
+			"Set clear: true to reset the buffer after reading.",
+			"Console logs accumulate across navigation — use clear: true to start fresh.",
+		],
+		parameters: Type.Object({
+			type: Type.Optional(Type.String({ description: "'log'|'error'|'warning'|'info'|'all' — default all" })),
+			limit: Type.Optional(Type.Number({ description: "Max entries to return, default 50" })),
+			clear: Type.Optional(Type.Boolean({ description: "Clear buffer after reading" })),
+		}),
+		async execute(_toolCallId, params) {
+			try {
+				const entries = filterConsoleLogs(captureState.consoleLogs, params.type, params.limit ?? 50);
+				if (params.clear) captureState.consoleLogs = [];
+				if (entries.length === 0) return { text: "No console logs captured." };
+				const lines = entries.map(e => `[${e.type.toUpperCase()}] ${e.text}`).join("\n");
+				return { text: `${entries.length} console log(s):\n${lines}` };
+			} catch (err) {
+				const msg = err instanceof Error ? err.message : String(err);
+				return toolError(`Console read failed: ${msg}`);
 			}
 		},
 	});
