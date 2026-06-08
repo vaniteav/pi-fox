@@ -41,8 +41,9 @@ Wait up to 1500ms by polling every 100ms if `verdict` is undefined — some veri
 **d. Determine result** based on `expected` type:
 
 - **`synthetic`**: Use `window.__verdict` as the result (`PASS`, `FAIL`, or `UNKNOWN` if still undefined after polling).
-- **`trusted`**: Compare your response to the challenge's expected answer. Record `PASS` or `FAIL` with a one-sentence explanation of the comparison.
+- **`trusted`**: Compare your response to the challenge's expected answer. Record `PASS` or `FAIL` with a one-sentence explanation of the comparison. If comparison is not possible (e.g. server error), record `FAIL` with the reason. Notes are required for all verdicts.
 - **`manual`**: Record `MANUAL_REVIEW`. Describe what you did in the note field.
+- **`SKIP`**: Use when a challenge is not applicable in the current environment (e.g. a tool the extension doesn't support). Only valid for `conditional`-gate challenges. Treated as neutral — does not count as a failure.
 
 **e. Record** the result: id, name, gate, expected, verdict, note (reason or explanation).
 
@@ -74,3 +75,5 @@ TOTAL                            {bar}  {pass} / {total}
 ```
 
 Progress bar: use █ for passed, ░ for not-passed, scaled to 14 characters.
+
+TOTAL sums all three gate pass counts and totals. All three gates must reach 100% for a release-ready benchmark run.
