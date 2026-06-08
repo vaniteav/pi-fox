@@ -328,7 +328,7 @@ async function takeSupervisedScreenshot(state: BrowserState, label: string): Pro
  * Returns existing page if open. Otherwise tears down any stale browser/context
  * (prevents process leaks on page crash) and launches a fresh session.
  */
-async function getPage(state: BrowserState): Promise<import("playwright").Page> {
+async function getPage(state: BrowserState, capture: CaptureState): Promise<import("playwright").Page> {
 	if (state.page && !state.page.isClosed()) return state.page;
 	// Tear down stale context/browser before relaunching
 	await closeBrowser(state);
@@ -339,6 +339,7 @@ async function getPage(state: BrowserState): Promise<import("playwright").Page> 
 		viewport: state.viewport,
 		ignoreHTTPSErrors: true,
 	});
+	state.context.on("page", (page) => attachPageCapture(page, capture));
 	state.page = await state.context.newPage();
 	return state.page;
 }
@@ -351,6 +352,44 @@ async function closeBrowser(state: BrowserState) {
 	state.context = null;
 	state.page = null;
 	state.sessionDir = "";
+}
+
+export function attachPageCapture(
+	page: import("playwright").Page,
+	captureState: CaptureState
+): void {
+	const pendingRequests = new WeakMap<import("playwright").Request, NetworkEntry>();
+
+	page.on("console", (msg) => {
+		captureState.consoleLogs.push({ type: msg.type(), text: msg.text(), timestamp: Date.now() });
+		if (captureState.consoleLogs.length > captureState.maxEntries)
+			captureState.consoleLogs.shift();
+	});
+
+	page.on("request", (req) => {
+		const entry: NetworkEntry = { method: req.method(), url: req.url(), status: null, timestamp: Date.now() };
+		captureState.networkRequests.push(entry);
+		if (captureState.networkRequests.length > captureState.maxEntries)
+			captureState.networkRequests.shift();
+		pendingRequests.set(req, entry);
+	});
+
+	page.on("response", (res) => {
+		const entry = pendingRequests.get(res.request());
+		if (entry) {
+			entry.status = res.status();
+			pendingRequests.delete(res.request());
+		}
+	});
+
+	page.on("dialog", async (dialog) => {
+		const handler = captureState.pendingDialog;
+		captureState.pendingDialog = null;
+		if (handler?.action === "accept")
+			await dialog.accept(handler.promptText);
+		else
+			await dialog.dismiss();
+	});
 }
 
 // ── Browser tool schemas ──
@@ -804,7 +843,7 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 		parameters: NavigateParams,
 		async execute(_toolCallId, params) {
 			try {
-				const page = await getPage(browserState);
+				const page = await getPage(browserState, captureState);
 				const wait = (params.waitUntil as "load" | "domcontentloaded" | "networkidle") ?? "load";
 				await page.goto(params.url, { waitUntil: wait, timeout: params.timeout ?? 30000 });
 				const title = await page.title();
@@ -827,7 +866,7 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 		parameters: ClickParams,
 		async execute(_toolCallId, params) {
 			try {
-				const page = await getPage(browserState);
+				const page = await getPage(browserState, captureState);
 				await page.click(params.selector, { timeout: params.timeout ?? 10000 });
 				return await withSupervisedScreenshot(browserState, "click", { selector: params.selector }, async () => ({
 					text: `Clicked: ${params.selector}`,
@@ -848,7 +887,7 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 		parameters: TypeParams,
 		async execute(_toolCallId, params) {
 			try {
-				const page = await getPage(browserState);
+				const page = await getPage(browserState, captureState);
 				await page.fill(params.selector, "", { timeout: params.timeout ?? 10000 });
 				await page.type(params.selector, params.text, { delay: params.delay ?? 0, timeout: params.timeout ?? 10000 });
 				return await withSupervisedScreenshot(browserState, "type", { selector: params.selector, text: params.text }, async () => ({
@@ -870,7 +909,7 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 		parameters: SnapshotParams,
 		async execute(_toolCallId, _params) {
 			try {
-				const page = await getPage(browserState);
+				const page = await getPage(browserState, captureState);
 				let raw: string;
 				try {
 					raw = await page.locator("body").ariaSnapshot() ?? "(empty page)";
@@ -896,7 +935,7 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 		parameters: ScreenshotParams,
 		async execute(_toolCallId, params) {
 			try {
-				const page = await getPage(browserState);
+				const page = await getPage(browserState, captureState);
 				const format = (params.format as "png" | "jpeg") ?? "png";
 				// BUG-4 fix: use locator when selector provided — element-scoped screenshot
 				const target = params.selector
@@ -930,7 +969,7 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 		parameters: EvaluateParams,
 		async execute(_toolCallId, params) {
 			try {
-				const page = await getPage(browserState);
+				const page = await getPage(browserState, captureState);
 				const result = await page.evaluate(params.script);
 				const output = typeof result === "object" ? JSON.stringify(result, null, 2) : String(result);
 				return await withSupervisedScreenshot(browserState, "evaluate", { resultType: typeof result }, async () => ({
@@ -952,7 +991,7 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 		parameters: WaitParams,
 		async execute(_toolCallId, params) {
 			try {
-				const page = await getPage(browserState);
+				const page = await getPage(browserState, captureState);
 				if (params.selector) {
 					const waitState = (params.state as "attached" | "visible" | "hidden" | "detached") || "visible";
 					await page.waitForSelector(params.selector, { state: waitState, timeout: params.timeout || 10000 });
@@ -1001,7 +1040,7 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 		parameters: TabNewParams,
 		async execute(_toolCallId, params) {
 			try {
-				await getPage(browserState);
+				await getPage(browserState, captureState);
 				const newPage = await browserState.context!.newPage();
 				if (params.url) await newPage.goto(params.url, { waitUntil: "load", timeout: 30000 });
 				browserState.page = newPage;
@@ -1077,7 +1116,7 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 		parameters: Type.Object({}),
 		async execute() {
 			try {
-				const page = await getPage(browserState);
+				const page = await getPage(browserState, captureState);
 				await page.goBack({ waitUntil: "load", timeout: 15000 });
 				return { content: [{ type: "text" as const, text: `Went back → ${page.url()}` }], details: { url: page.url() } };
 			} catch (err) {
@@ -1096,7 +1135,7 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 		parameters: Type.Object({}),
 		async execute() {
 			try {
-				const page = await getPage(browserState);
+				const page = await getPage(browserState, captureState);
 				await page.goForward({ waitUntil: "load", timeout: 15000 });
 				return { content: [{ type: "text" as const, text: `Went forward → ${page.url()}` }], details: { url: page.url() } };
 			} catch (err) {
@@ -1115,7 +1154,7 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 		parameters: Type.Object({}),
 		async execute() {
 			try {
-				const page = await getPage(browserState);
+				const page = await getPage(browserState, captureState);
 				await page.reload({ waitUntil: "load", timeout: 30000 });
 				return { content: [{ type: "text" as const, text: `Reloaded: ${page.url()}` }], details: { url: page.url() } };
 			} catch (err) {
