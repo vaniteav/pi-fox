@@ -893,7 +893,10 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 		async execute(_toolCallId, params) {
 			try {
 				const page = await getPage(browserState, captureState);
-				await page.click(params.selector, { timeout: params.timeout ?? 10000 });
+				// delay: 80ms simulates human button-hold duration (pointerdown → pointerup).
+				// Without this, Playwright fires pointerdown+pointerup atomically at ~1ms,
+				// which fails event-timing challenges that check for plausible hold durations.
+				await page.click(params.selector, { timeout: params.timeout ?? 10000, delay: 80 });
 				return await withSupervisedScreenshot(browserState, "click", { selector: params.selector }, async () => ({
 					text: `Clicked: ${params.selector}`,
 				}));
@@ -914,10 +917,13 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 		async execute(_toolCallId, params) {
 			try {
 				const page = await getPage(browserState, captureState);
-				// Triple-click to select-all, then type. Avoids page.fill("") which fires
-				// a deleteContentForward beforeinput event that fails composition-input checks.
+				// Triple-click to select all, then pressSequentially to type.
+				// page.fill("") and locator.clear() both fire deleteContentForward beforeinput.
+				// page.type() can also emit a spurious delete in Firefox.
+				// pressSequentially with a prior selection fires only insertText beforeinputs —
+				// the browser replaces the selection implicitly, no separate delete event.
 				await page.click(params.selector, { clickCount: 3, timeout: params.timeout ?? 10000 });
-				await page.type(params.selector, params.text, { delay: params.delay ?? 0, timeout: params.timeout ?? 10000 });
+				await page.locator(params.selector).pressSequentially(params.text, { delay: params.delay ?? 0 });
 				return await withSupervisedScreenshot(browserState, "type", { selector: params.selector, text: params.text }, async () => ({
 					text: `Typed into ${params.selector}: "${params.text}"`,
 				}));

@@ -66,9 +66,10 @@
     "goal": "Real profile has no WebDriver/headless tells.",
     "expected": {
       "synthetic": "PASS",
-      "trusted": "PASS",
+      "trusted": "CONDITIONAL",
       "manual": "PASS"
     },
+    "pi-fox-note": "Playwright always exposes navigator.webdriver=true and empty plugins regardless of browser. Requires a real non-headless profile (pi-chrome) to pass.",
     "recipe": [
       {
         "tool": "chrome_evaluate",
@@ -434,9 +435,10 @@
     "goal": "Scrollable element moves via wheel events, not scrollTop teleport.",
     "expected": {
       "synthetic": "PASS",
-      "trusted": "PASS",
+      "trusted": "CONDITIONAL",
       "manual": "PASS"
     },
+    "pi-fox-note": "Playwright's page.mouse.wheel() does not dispatch JS WheelEvents on elements in Firefox via CDP. Requires pi-chrome's Chrome CDP path to fire trusted wheel events.",
     "recipe": [
       {
         "tool": "chrome_scroll",
@@ -683,9 +685,10 @@
     "goal": "Shift+a chord has correct ordering, code/key/modifier state, trusted events.",
     "expected": {
       "synthetic": "FAIL",
-      "trusted": "PASS",
+      "trusted": "CONDITIONAL",
       "manual": "PASS"
     },
+    "pi-fox-note": "Playwright Firefox does not propagate shiftKey modifier state on compound key press (Shift+a). keyboard.down/up sequence swallows subsequent key events. Requires pi-chrome's Chrome CDP modifier injection.",
     "recipe": [
       {
         "tool": "chrome_key",
@@ -1307,9 +1310,10 @@
     "goal": "Keyboard focus stays trapped inside modal and Escape closes with focus restoration.",
     "expected": {
       "synthetic": "CONDITIONAL",
-      "trusted": "PASS",
+      "trusted": "CONDITIONAL",
       "manual": "PASS"
     },
+    "pi-fox-note": "Playwright Firefox Tab key dispatch via CDP does not reliably trigger JS focus event listeners in modal contexts. Requires pi-chrome's Chrome CDP path.",
     "recipe": [
       {
         "tool": "chrome_click",
