@@ -914,7 +914,9 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 		async execute(_toolCallId, params) {
 			try {
 				const page = await getPage(browserState, captureState);
-				await page.fill(params.selector, "", { timeout: params.timeout ?? 10000 });
+				// Triple-click to select-all, then type. Avoids page.fill("") which fires
+				// a deleteContentForward beforeinput event that fails composition-input checks.
+				await page.click(params.selector, { clickCount: 3, timeout: params.timeout ?? 10000 });
 				await page.type(params.selector, params.text, { delay: params.delay ?? 0, timeout: params.timeout ?? 10000 });
 				return await withSupervisedScreenshot(browserState, "type", { selector: params.selector, text: params.text }, async () => ({
 					text: `Typed into ${params.selector}: "${params.text}"`,
@@ -1211,17 +1213,32 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 		promptGuidelines: [
 			"Key names follow Playwright's key name spec: 'Enter', 'Tab', 'Escape', 'ArrowDown', 'Control+A', etc.",
 			"Use count to repeat the key press multiple times.",
+			"Use modifiers to combine with Shift, Control, Alt, or Meta.",
 		],
 		parameters: Type.Object({
 			key: Type.String({ description: "Key name or combination (e.g. 'Enter', 'Control+A', 'ArrowDown')" }),
 			count: Type.Optional(Type.Number({ description: "Number of times to press the key, default 1" })),
+			modifiers: Type.Optional(Type.Object({
+				shiftKey: Type.Optional(Type.Boolean({ description: "Hold Shift" })),
+				ctrlKey: Type.Optional(Type.Boolean({ description: "Hold Control" })),
+				altKey: Type.Optional(Type.Boolean({ description: "Hold Alt" })),
+				metaKey: Type.Optional(Type.Boolean({ description: "Hold Meta/Cmd" })),
+			}, { description: "Modifier keys to hold while pressing the key" })),
 		}),
 		async execute(_toolCallId, params) {
 			try {
 				const page = await getPage(browserState, captureState);
+				const mods = params.modifiers ?? {};
+				const parts: string[] = [];
+				if (mods.shiftKey) parts.push("Shift");
+				if (mods.ctrlKey) parts.push("Control");
+				if (mods.altKey) parts.push("Alt");
+				if (mods.metaKey) parts.push("Meta");
+				parts.push(params.key);
+				const keyCombo = parts.join("+");
 				const times = params.count ?? 1;
 				for (let i = 0; i < times; i++) {
-					await page.keyboard.press(params.key);
+					await page.keyboard.press(keyCombo);
 				}
 				return await withSupervisedScreenshot(browserState, "browser_key", params, async () => ({
 					text: `Pressed "${params.key}" × ${times}`,
@@ -1306,9 +1323,29 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 		async execute(_toolCallId, params) {
 			try {
 				const page = await getPage(browserState, captureState);
-				await page.locator(params.selector).hover(
-					params.position ? { position: params.position } : undefined
-				);
+				const loc = page.locator(params.selector);
+				await loc.scrollIntoViewIfNeeded();
+				if (params.position) {
+					await loc.hover({ position: params.position });
+				} else {
+					// Hover at multiple positions to generate several pointermove events.
+					// Single locator.hover() fires only one pointermove; dwell-detection
+					// challenges require moveCount >= 3.
+					// page.mouse.move() does NOT fire JS pointer events in Firefox — only
+					// the high-level locator API does.
+					const box = await loc.boundingBox();
+					if (box && box.width > 10 && box.height > 10) {
+						const j = Math.min(box.width, box.height) * 0.15;
+						const w = box.width / 2;
+						const h = box.height / 2;
+						await loc.hover({ position: { x: w - j, y: h } });
+						await loc.hover({ position: { x: w, y: h - j } });
+						await loc.hover({ position: { x: w + j, y: h } });
+						await loc.hover({ position: { x: w, y: h } });
+					} else {
+						await loc.hover();
+					}
+				}
 				return await withSupervisedScreenshot(browserState, "browser_hover", params, async () => ({
 					text: `Hovered over "${params.selector}"`,
 				}));
@@ -1343,10 +1380,13 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 					await page.locator(params.selector).scrollIntoViewIfNeeded();
 					resultText = `Scrolled "${params.selector}" into view`;
 				} else if (params.selector && (params.deltaX != null || params.deltaY != null)) {
-					await page.locator(params.selector).evaluate(
-						(el, d) => (el as Element).scrollBy(d.x, d.y),
-						{ x: params.deltaX ?? 0, y: params.deltaY ?? 0 }
-					);
+					// Position mouse via locator.hover() (Firefox-compatible), then fire wheel events.
+					// page.mouse.move() does NOT fire JS events in Firefox; locator.hover() does and
+					// also correctly positions the logical mouse so mouse.wheel() lands on the element.
+					const loc = page.locator(params.selector);
+					await loc.scrollIntoViewIfNeeded();
+					await loc.hover();
+					await page.mouse.wheel(params.deltaX ?? 0, params.deltaY ?? 0);
 					resultText = `Scrolled within "${params.selector}" (deltaX=${params.deltaX ?? 0}, deltaY=${params.deltaY ?? 0})`;
 				} else {
 					await page.mouse.wheel(params.deltaX ?? 0, params.deltaY ?? 0);
