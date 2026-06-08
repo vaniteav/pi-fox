@@ -1186,6 +1186,44 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 		},
 	});
 
+	pi.registerTool({
+		name: "browser_scroll",
+		label: "Browser Scroll",
+		description: "Scroll the page or a specific element. Omit selector to scroll the page; omit deltas to scroll an element into view.",
+		promptSnippet: "browser_scroll({ deltaY: 300 })",
+		promptGuidelines: [
+			"Use deltaY > 0 to scroll down, < 0 to scroll up.",
+			"Provide selector without deltas to scroll an element into view.",
+			"Provide selector with deltas to scroll within that element's scroll container.",
+		],
+		parameters: Type.Object({
+			selector: Type.Optional(Type.String({ description: "CSS selector of element to scroll within or into view" })),
+			deltaX: Type.Optional(Type.Number({ description: "Horizontal scroll in pixels (negative = left)" })),
+			deltaY: Type.Optional(Type.Number({ description: "Vertical scroll in pixels (negative = up)" })),
+		}),
+		async execute(_toolCallId, params) {
+			try {
+				const page = await getPage(browserState, captureState);
+				if (params.selector && params.deltaX == null && params.deltaY == null) {
+					await page.locator(params.selector).scrollIntoViewIfNeeded();
+				} else if (params.selector && (params.deltaX != null || params.deltaY != null)) {
+					await page.locator(params.selector).evaluate(
+						(el, d) => (el as Element).scrollBy(d.x, d.y),
+						{ x: params.deltaX ?? 0, y: params.deltaY ?? 0 }
+					);
+				} else {
+					await page.mouse.wheel(params.deltaX ?? 0, params.deltaY ?? 0);
+				}
+				return await withSupervisedScreenshot(browserState, "browser_scroll", params, async () => ({
+					text: `Scrolled (deltaX=${params.deltaX ?? 0}, deltaY=${params.deltaY ?? 0})`,
+				}));
+			} catch (err) {
+				const msg = err instanceof Error ? err.message : String(err);
+				return toolError(`Scroll failed: ${msg}`, { params });
+			}
+		},
+	});
+
 	// =======================================================================
 	// WEB SEARCH TOOLS
 	// =======================================================================

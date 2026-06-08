@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { EventEmitter } from 'events';
+import { Type } from '@sinclair/typebox';
+import { Value } from '@sinclair/typebox/value';
 import { attachPageCapture } from './index';
 
 // These will fail until the types and exports are added to index.ts
@@ -102,4 +104,16 @@ describe('attachPageCapture', () => {
     expect(dismissed.called).toBe(true);
     expect(state.pendingDialog).toBeNull();
   });
+});
+
+const ScrollParams = Type.Object({
+  selector: Type.Optional(Type.String()),
+  deltaX: Type.Optional(Type.Number()),
+  deltaY: Type.Optional(Type.Number()),
+});
+
+describe('browser_scroll params', () => {
+  it('accepts empty object', () => { expect(Value.Check(ScrollParams, {})).toBe(true); });
+  it('accepts selector only', () => { expect(Value.Check(ScrollParams, { selector: '#main' })).toBe(true); });
+  it('rejects non-numeric deltaY', () => { expect(Value.Check(ScrollParams, { deltaY: 'down' })).toBe(false); });
 });
