@@ -87,4 +87,19 @@ describe('attachPageCapture', () => {
     expect(acceptedWith).toBe('yes');
     expect(state.pendingDialog).toBeNull();
   });
+
+  it('dismisses dialog when pendingDialog is armed with dismiss', async () => {
+    const state: any = { consoleLogs: [], networkRequests: [], pendingDialog: { action: 'dismiss' }, maxEntries: 100 };
+    const page = makeMockPage() as any;
+    attachPageCapture(page, state);
+
+    const dismissed = { called: false };
+    const dialog = { dismiss: async () => { dismissed.called = true; }, accept: async () => {} };
+
+    page.emit('dialog', dialog);
+    await new Promise(r => setTimeout(r, 10));
+
+    expect(dismissed.called).toBe(true);
+    expect(state.pendingDialog).toBeNull();
+  });
 });

@@ -358,7 +358,8 @@ export function attachPageCapture(
 	page: import("playwright").Page,
 	captureState: CaptureState
 ): void {
-	const pendingRequests = new WeakMap<import("playwright").Request, NetworkEntry>();
+	const pendingRequests = new Map<import("playwright").Request, NetworkEntry>();
+	const pendingRequestsQueue: Array<import("playwright").Request> = [];
 
 	page.on("console", (msg) => {
 		captureState.consoleLogs.push({ type: msg.type(), text: msg.text(), timestamp: Date.now() });
@@ -369,9 +370,13 @@ export function attachPageCapture(
 	page.on("request", (req) => {
 		const entry: NetworkEntry = { method: req.method(), url: req.url(), status: null, timestamp: Date.now() };
 		captureState.networkRequests.push(entry);
-		if (captureState.networkRequests.length > captureState.maxEntries)
-			captureState.networkRequests.shift();
 		pendingRequests.set(req, entry);
+		pendingRequestsQueue.push(req);
+		if (captureState.networkRequests.length > captureState.maxEntries) {
+			captureState.networkRequests.shift();
+			const evicted = pendingRequestsQueue.shift();
+			if (evicted) pendingRequests.delete(evicted);
+		}
 	});
 
 	page.on("response", (res) => {
@@ -379,16 +384,20 @@ export function attachPageCapture(
 		if (entry) {
 			entry.status = res.status();
 			pendingRequests.delete(res.request());
+			const idx = pendingRequestsQueue.indexOf(res.request());
+			if (idx !== -1) pendingRequestsQueue.splice(idx, 1);
 		}
 	});
 
 	page.on("dialog", async (dialog) => {
 		const handler = captureState.pendingDialog;
 		captureState.pendingDialog = null;
-		if (handler?.action === "accept")
-			await dialog.accept(handler.promptText);
-		else
-			await dialog.dismiss();
+		try {
+			if (handler?.action === "accept")
+				await dialog.accept(handler.promptText);
+			else
+				await dialog.dismiss();
+		} catch { /* page navigated or dialog already handled */ }
 	});
 }
 
