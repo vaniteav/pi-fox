@@ -146,3 +146,11 @@ describe('browser_drag params', () => {
   it('accepts source and target', () => { expect(Value.Check(DragParams, { source: '#item', target: '#drop-zone' })).toBe(true); });
   it('rejects missing target', () => { expect(Value.Check(DragParams, { source: '#item' })).toBe(false); });
 });
+
+const UploadParams = Type.Object({ selector: Type.String(), paths: Type.Array(Type.String()) });
+
+describe('browser_upload_file params', () => {
+  it('accepts selector and paths array', () => { expect(Value.Check(UploadParams, { selector: 'input[type=file]', paths: ['/tmp/file.png'] })).toBe(true); });
+  it('accepts multiple paths', () => { expect(Value.Check(UploadParams, { selector: 'input[type=file]', paths: ['/a.png', '/b.png'] })).toBe(true); });
+  it('rejects non-array paths', () => { expect(Value.Check(UploadParams, { selector: 'input[type=file]', paths: '/a.png' })).toBe(false); });
+});

@@ -1217,6 +1217,34 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 	});
 
 	pi.registerTool({
+		name: "browser_upload_file",
+		label: "Browser Upload File",
+		description: "Set files on a file input element.",
+		promptSnippet: "browser_upload_file({ selector: 'input[type=file]', paths: ['/path/to/file.png'] })",
+		promptGuidelines: [
+			"selector must target an <input type='file'> element.",
+			"paths must be absolute paths on the local filesystem.",
+			"Multiple files can be provided as an array.",
+		],
+		parameters: Type.Object({
+			selector: Type.String({ description: "CSS selector of the <input type='file'> element" }),
+			paths: Type.Array(Type.String(), { description: "Absolute local filesystem paths to upload" }),
+		}),
+		async execute(_toolCallId, params) {
+			try {
+				const page = await getPage(browserState, captureState);
+				await page.locator(params.selector).setInputFiles(params.paths);
+				return await withSupervisedScreenshot(browserState, "browser_upload_file", params, async () => ({
+					text: `Set ${params.paths.length} file(s) on "${params.selector}"`,
+				}));
+			} catch (err) {
+				const msg = err instanceof Error ? err.message : String(err);
+				return toolError(`Upload failed on "${params.selector}": ${msg}`, { selector: params.selector });
+			}
+		},
+	});
+
+	pi.registerTool({
 		name: "browser_drag",
 		label: "Browser Drag",
 		description: "Drag an element and drop it onto another element.",
