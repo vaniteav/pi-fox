@@ -128,3 +128,14 @@ describe('browser_key params', () => {
   it('accepts key with count', () => { expect(Value.Check(KeyParams, { key: 'ArrowDown', count: 5 })).toBe(true); });
   it('rejects missing key', () => { expect(Value.Check(KeyParams, {})).toBe(false); });
 });
+
+const HoverParams = Type.Object({
+  selector: Type.String(),
+  position: Type.Optional(Type.Object({ x: Type.Number(), y: Type.Number() })),
+});
+
+describe('browser_hover params', () => {
+  it('accepts selector only', () => { expect(Value.Check(HoverParams, { selector: '#btn' })).toBe(true); });
+  it('accepts selector with position', () => { expect(Value.Check(HoverParams, { selector: '#btn', position: { x: 10, y: 5 } })).toBe(true); });
+  it('rejects missing selector', () => { expect(Value.Check(HoverParams, {})).toBe(false); });
+});

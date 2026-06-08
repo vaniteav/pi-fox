@@ -1217,6 +1217,37 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 	});
 
 	pi.registerTool({
+		name: "browser_hover",
+		label: "Browser Hover",
+		description: "Move the mouse cursor over an element to trigger hover effects, tooltips, or dropdown menus.",
+		promptSnippet: "browser_hover({ selector: '#menu-trigger' })",
+		promptGuidelines: [
+			"Use position to target a specific offset within the element's bounding box.",
+		],
+		parameters: Type.Object({
+			selector: Type.String({ description: "CSS selector of element to hover" }),
+			position: Type.Optional(Type.Object({
+				x: Type.Number({ description: "X offset in pixels from element top-left" }),
+				y: Type.Number({ description: "Y offset in pixels from element top-left" }),
+			})),
+		}),
+		async execute(_toolCallId, params) {
+			try {
+				const page = await getPage(browserState, captureState);
+				await page.locator(params.selector).hover(
+					params.position ? { position: params.position } : undefined
+				);
+				return await withSupervisedScreenshot(browserState, "browser_hover", params, async () => ({
+					text: `Hovered over "${params.selector}"`,
+				}));
+			} catch (err) {
+				const msg = err instanceof Error ? err.message : String(err);
+				return toolError(`Hover failed on "${params.selector}": ${msg}`, { selector: params.selector });
+			}
+		},
+	});
+
+	pi.registerTool({
 		name: "browser_scroll",
 		label: "Browser Scroll",
 		description: "Scroll the page or a specific element. Omit selector to scroll the page; omit deltas to scroll an element into view.",
