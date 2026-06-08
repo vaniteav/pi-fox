@@ -1187,6 +1187,36 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 	});
 
 	pi.registerTool({
+		name: "browser_key",
+		label: "Browser Key",
+		description: "Press a keyboard key or key combination. Use for Enter, Tab, Escape, arrow keys, and shortcuts like Control+A.",
+		promptSnippet: "browser_key({ key: 'Enter' })",
+		promptGuidelines: [
+			"Key names follow Playwright's key name spec: 'Enter', 'Tab', 'Escape', 'ArrowDown', 'Control+A', etc.",
+			"Use count to repeat the key press multiple times.",
+		],
+		parameters: Type.Object({
+			key: Type.String({ description: "Key name or combination (e.g. 'Enter', 'Control+A', 'ArrowDown')" }),
+			count: Type.Optional(Type.Number({ description: "Number of times to press the key, default 1" })),
+		}),
+		async execute(_toolCallId, params) {
+			try {
+				const page = await getPage(browserState, captureState);
+				const times = params.count ?? 1;
+				for (let i = 0; i < times; i++) {
+					await page.keyboard.press(params.key);
+				}
+				return await withSupervisedScreenshot(browserState, "browser_key", params, async () => ({
+					text: `Pressed "${params.key}" × ${times}`,
+				}));
+			} catch (err) {
+				const msg = err instanceof Error ? err.message : String(err);
+				return toolError(`Key press failed: ${msg}`, { key: params.key });
+			}
+		},
+	});
+
+	pi.registerTool({
 		name: "browser_scroll",
 		label: "Browser Scroll",
 		description: "Scroll the page or a specific element. Omit selector to scroll the page; omit deltas to scroll an element into view.",

@@ -117,3 +117,14 @@ describe('browser_scroll params', () => {
   it('accepts selector only', () => { expect(Value.Check(ScrollParams, { selector: '#main' })).toBe(true); });
   it('rejects non-numeric deltaY', () => { expect(Value.Check(ScrollParams, { deltaY: 'down' })).toBe(false); });
 });
+
+const KeyParams = Type.Object({
+  key: Type.String(),
+  count: Type.Optional(Type.Number()),
+});
+
+describe('browser_key params', () => {
+  it('accepts key only', () => { expect(Value.Check(KeyParams, { key: 'Enter' })).toBe(true); });
+  it('accepts key with count', () => { expect(Value.Check(KeyParams, { key: 'ArrowDown', count: 5 })).toBe(true); });
+  it('rejects missing key', () => { expect(Value.Check(KeyParams, {})).toBe(false); });
+});
