@@ -410,6 +410,17 @@ export function filterConsoleLogs(
 	return filtered.slice(-limit);
 }
 
+export function filterNetworkRequests(
+	requests: NetworkEntry[],
+	urlContains?: string,
+	method?: string
+): NetworkEntry[] {
+	return requests.filter(e =>
+		(!urlContains || e.url.includes(urlContains)) &&
+		(!method || e.method.toUpperCase() === method.toUpperCase())
+	);
+}
+
 // ── Browser tool schemas ──
 
 const NavigateParams = Type.Object({
@@ -1378,6 +1389,37 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 			} catch (err) {
 				const msg = err instanceof Error ? err.message : String(err);
 				return toolError(`Console read failed: ${msg}`);
+			}
+		},
+	});
+
+	pi.registerTool({
+		name: "browser_network",
+		label: "Browser Network",
+		description: "Read captured network requests. Requests are collected automatically from the moment the browser launches.",
+		promptSnippet: "Read captured network requests",
+		promptGuidelines: [
+			"Use urlContains to filter to a specific endpoint or domain.",
+			"Status is null for requests that have not received a response.",
+			"Set clear: true to reset the buffer after reading.",
+		],
+		parameters: Type.Object({
+			urlContains: Type.Optional(Type.String({ description: "Filter to URLs containing this substring" })),
+			method: Type.Optional(Type.String({ description: "Filter by HTTP method: 'GET', 'POST', etc." })),
+			clear: Type.Optional(Type.Boolean({ description: "Clear buffer after reading" })),
+		}),
+		async execute(_toolCallId, params) {
+			try {
+				const entries = filterNetworkRequests(captureState.networkRequests, params.urlContains, params.method);
+				if (params.clear) captureState.networkRequests = [];
+				if (entries.length === 0) return { text: "No network requests captured." };
+				const lines = entries.map(e =>
+					`[${e.method}] ${e.url} → ${e.status ?? "pending"}`
+				).join("\n");
+				return { text: `${entries.length} request(s):\n${lines}` };
+			} catch (err) {
+				const msg = err instanceof Error ? err.message : String(err);
+				return toolError(`Network read failed: ${msg}`);
 			}
 		},
 	});

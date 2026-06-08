@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { EventEmitter } from 'events';
 import { Type } from '@sinclair/typebox';
 import { Value } from '@sinclair/typebox/value';
-import { attachPageCapture, filterConsoleLogs } from './index';
+import { attachPageCapture, filterConsoleLogs, filterNetworkRequests } from './index';
 
 // These will fail until the types and exports are added to index.ts
 // Import will be added once exports exist — for now test the shape inline
@@ -129,6 +129,33 @@ describe('filterConsoleLogs', () => {
     expect(result).toHaveLength(2);
     expect(result[0].text).toBe('careful');
     expect(result[1].text).toBe('world');
+  });
+});
+
+describe('filterNetworkRequests', () => {
+  const requests = [
+    { method: 'GET', url: 'https://api.example.com/users', status: 200, timestamp: 1 },
+    { method: 'POST', url: 'https://api.example.com/login', status: 401, timestamp: 2 },
+    { method: 'GET', url: 'https://cdn.example.com/style.css', status: 200, timestamp: 3 },
+    { method: 'GET', url: 'https://api.example.com/data', status: null, timestamp: 4 },
+  ];
+
+  it('returns all when no filters applied', () => {
+    expect(filterNetworkRequests(requests)).toHaveLength(4);
+  });
+
+  it('filters by urlContains', () => {
+    expect(filterNetworkRequests(requests, 'api.example.com')).toHaveLength(3);
+  });
+
+  it('filters by method case-insensitively', () => {
+    const result = filterNetworkRequests(requests, undefined, 'post');
+    expect(result).toHaveLength(1);
+    expect(result[0].url).toContain('login');
+  });
+
+  it('combines urlContains and method filters', () => {
+    expect(filterNetworkRequests(requests, 'api.example.com', 'GET')).toHaveLength(2);
   });
 });
 
