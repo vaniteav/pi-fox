@@ -1190,7 +1190,7 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 		name: "browser_key",
 		label: "Browser Key",
 		description: "Press a keyboard key or key combination. Use for Enter, Tab, Escape, arrow keys, and shortcuts like Control+A.",
-		promptSnippet: "browser_key({ key: 'Enter' })",
+		promptSnippet: "Press a keyboard key like Enter, Tab, or a shortcut like Control+A",
 		promptGuidelines: [
 			"Key names follow Playwright's key name spec: 'Enter', 'Tab', 'Escape', 'ArrowDown', 'Control+A', etc.",
 			"Use count to repeat the key press multiple times.",
@@ -1220,7 +1220,7 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 		name: "browser_upload_file",
 		label: "Browser Upload File",
 		description: "Set files on a file input element.",
-		promptSnippet: "browser_upload_file({ selector: 'input[type=file]', paths: ['/path/to/file.png'] })",
+		promptSnippet: "Upload files to a file input element",
 		promptGuidelines: [
 			"selector must target an <input type='file'> element.",
 			"paths must be absolute paths on the local filesystem.",
@@ -1248,7 +1248,7 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 		name: "browser_drag",
 		label: "Browser Drag",
 		description: "Drag an element and drop it onto another element.",
-		promptSnippet: "browser_drag({ source: '#draggable', target: '#dropzone' })",
+		promptSnippet: "Drag an element and drop it onto another element",
 		promptGuidelines: [
 			"Both source and target must be valid CSS selectors.",
 			"Uses Playwright's dragAndDrop which fires pointerdown, drag, and drop events.",
@@ -1275,7 +1275,7 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 		name: "browser_hover",
 		label: "Browser Hover",
 		description: "Move the mouse cursor over an element to trigger hover effects, tooltips, or dropdown menus.",
-		promptSnippet: "browser_hover({ selector: '#menu-trigger' })",
+		promptSnippet: "Hover the mouse over a page element",
 		promptGuidelines: [
 			"Use position to target a specific offset within the element's bounding box.",
 		],
@@ -1306,7 +1306,7 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 		name: "browser_scroll",
 		label: "Browser Scroll",
 		description: "Scroll the page or a specific element. Omit selector to scroll the page; omit deltas to scroll an element into view.",
-		promptSnippet: "browser_scroll({ deltaY: 300 })",
+		promptSnippet: "Scroll the page or an element into view",
 		promptGuidelines: [
 			"Use deltaY > 0 to scroll down, < 0 to scroll up.",
 			"Provide selector without deltas to scroll an element into view.",
@@ -1320,22 +1320,26 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 		async execute(_toolCallId, params) {
 			try {
 				const page = await getPage(browserState, captureState);
+				let resultText: string;
 				if (params.selector && params.deltaX == null && params.deltaY == null) {
 					await page.locator(params.selector).scrollIntoViewIfNeeded();
+					resultText = `Scrolled "${params.selector}" into view`;
 				} else if (params.selector && (params.deltaX != null || params.deltaY != null)) {
 					await page.locator(params.selector).evaluate(
 						(el, d) => (el as Element).scrollBy(d.x, d.y),
 						{ x: params.deltaX ?? 0, y: params.deltaY ?? 0 }
 					);
+					resultText = `Scrolled within "${params.selector}" (deltaX=${params.deltaX ?? 0}, deltaY=${params.deltaY ?? 0})`;
 				} else {
 					await page.mouse.wheel(params.deltaX ?? 0, params.deltaY ?? 0);
+					resultText = `Scrolled page (deltaX=${params.deltaX ?? 0}, deltaY=${params.deltaY ?? 0})`;
 				}
 				return await withSupervisedScreenshot(browserState, "browser_scroll", params, async () => ({
-					text: `Scrolled (deltaX=${params.deltaX ?? 0}, deltaY=${params.deltaY ?? 0})`,
+					text: resultText,
 				}));
 			} catch (err) {
 				const msg = err instanceof Error ? err.message : String(err);
-				return toolError(`Scroll failed: ${msg}`, { params });
+				return toolError(`Scroll failed: ${msg}`, { selector: params.selector });
 			}
 		},
 	});
