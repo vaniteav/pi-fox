@@ -128,6 +128,31 @@ interface BrowserState {
 	viewport: { width: number; height: number };
 }
 
+interface ConsoleEntry {
+	type: string;
+	text: string;
+	timestamp: number;
+}
+
+interface NetworkEntry {
+	method: string;
+	url: string;
+	status: number | null;
+	timestamp: number;
+}
+
+interface PendingDialogHandler {
+	action: "accept" | "dismiss";
+	promptText?: string;
+}
+
+interface CaptureState {
+	consoleLogs: ConsoleEntry[];
+	networkRequests: NetworkEntry[];
+	pendingDialog: PendingDialogHandler | null;
+	maxEntries: number;
+}
+
 // ── Settings ──
 
 const SETTINGS_FILE = join(homedir(), ".pi", "agent", "settings.json");
@@ -756,6 +781,14 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 		browser: null,
 		context: null,
 		page: null,
+	};
+
+	// ── Capture state — peer of browserState, survives closeBrowser() ──
+	const captureState: CaptureState = {
+		consoleLogs: [],
+		networkRequests: [],
+		pendingDialog: null,
+		maxEntries: 500,
 	};
 
 	// =======================================================================
