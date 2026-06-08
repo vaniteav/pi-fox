@@ -1,10 +1,1681 @@
 [
   {
-    "id": 1,
-    "name": "navigate_basic",
-    "category": "navigation",
+    "id": "is-trusted-click",
+    "file": "challenges/01-is-trusted-click.html",
+    "category": "trusted-input",
+    "goal": "Click handler receives browser-trusted pointer/click events.",
+    "expected": {
+      "synthetic": "FAIL",
+      "trusted": "PASS",
+      "manual": "PASS"
+    },
+    "recipe": [
+      {
+        "tool": "chrome_click",
+        "params": {
+          "selector": "#go",
+          "trusted": true
+        }
+      }
+    ],
+    "notes": [
+      "Core debugger/CDP smoke test."
+    ],
+    "manualBaseline": "unverified",
+    "gradeSource": "page",
+    "difficulty": "L1",
+    "tags": [
+      "trusted-input"
+    ],
+    "requires": {},
+    "gate": "core"
+  },
+  {
+    "id": "is-trusted-keyboard",
+    "file": "challenges/02-is-trusted-keyboard.html",
+    "category": "trusted-input",
+    "goal": "Typing produces trusted keydown/input sequence.",
+    "expected": {
+      "synthetic": "FAIL",
+      "trusted": "PASS",
+      "manual": "PASS"
+    },
+    "recipe": [
+      {
+        "tool": "chrome_type",
+        "params": {
+          "selector": "#t",
+          "text": "hello",
+          "trusted": true
+        }
+      }
+    ],
+    "manualBaseline": "unverified",
+    "gradeSource": "page",
+    "difficulty": "L1",
+    "tags": [
+      "trusted-input"
+    ],
+    "requires": {},
+    "gate": "core"
+  },
+  {
+    "id": "webdriver-flag",
+    "file": "challenges/03-webdriver-flag.html",
+    "category": "fingerprint",
+    "goal": "Real profile has no WebDriver/headless tells.",
+    "expected": {
+      "synthetic": "PASS",
+      "trusted": "PASS",
+      "manual": "PASS"
+    },
+    "recipe": [
+      {
+        "tool": "chrome_evaluate",
+        "params": {
+          "expression": "JSON.stringify({v:window.__verdict,r:window.__reason})"
+        }
+      }
+    ],
+    "notes": [
+      "Environment-sensitive; classify unexpected failures as profile warnings first."
+    ],
+    "manualBaseline": "unverified",
+    "gradeSource": "page",
+    "difficulty": "L1",
+    "tags": [
+      "fingerprint"
+    ],
+    "requires": {},
+    "gate": "core"
+  },
+  {
+    "id": "mouse-entropy",
+    "file": "challenges/04-mouse-entropy.html",
+    "category": "pointer-humanization",
+    "goal": "Click is preceded by organic mousemove path.",
+    "expected": {
+      "synthetic": "FAIL",
+      "trusted": "PASS",
+      "manual": "PASS"
+    },
+    "recipe": [
+      {
+        "tool": "chrome_click",
+        "params": {
+          "selector": "#go"
+        }
+      }
+    ],
+    "manualBaseline": "unverified",
+    "gradeSource": "page",
+    "difficulty": "L1",
+    "tags": [
+      "pointer-humanization"
+    ],
+    "requires": {},
+    "gate": "quality"
+  },
+  {
+    "id": "event-timing",
+    "file": "challenges/05-event-timing.html",
+    "category": "timing",
+    "goal": "Repeated clicks have plausible holds and gaps.",
+    "expected": {
+      "synthetic": "CONDITIONAL",
+      "trusted": "PASS",
+      "manual": "PASS"
+    },
+    "recipe": [
+      {
+        "tool": "chrome_click",
+        "params": {
+          "selector": "#go"
+        }
+      },
+      {
+        "tool": "chrome_click",
+        "params": {
+          "selector": "#go"
+        }
+      },
+      {
+        "tool": "chrome_click",
+        "params": {
+          "selector": "#go"
+        }
+      }
+    ],
+    "flakeRisk": "medium",
+    "manualBaseline": "unverified",
+    "gradeSource": "page",
+    "difficulty": "L1",
+    "tags": [
+      "timing"
+    ],
+    "requires": {},
+    "thresholds": {},
+    "notes": [
+      "Timing thresholds can be tuned via ?threshold.<name>=value for slower CI or high-polling devices."
+    ],
+    "gate": "core"
+  },
+  {
+    "id": "click-coordinates",
+    "file": "challenges/06-click-coordinates.html",
+    "category": "pointer-humanization",
+    "goal": "Clicks land inside target but not always exact center.",
+    "expected": {
+      "synthetic": "CONDITIONAL",
+      "trusted": "PASS",
+      "manual": "PASS"
+    },
+    "recipe": [
+      {
+        "tool": "chrome_click",
+        "params": {
+          "selector": "#go"
+        }
+      },
+      {
+        "tool": "chrome_click",
+        "params": {
+          "selector": "#go"
+        }
+      },
+      {
+        "tool": "chrome_click",
+        "params": {
+          "selector": "#go"
+        }
+      },
+      {
+        "tool": "chrome_click",
+        "params": {
+          "selector": "#go"
+        }
+      },
+      {
+        "tool": "chrome_click",
+        "params": {
+          "selector": "#go"
+        }
+      }
+    ],
+    "manualBaseline": "unverified",
+    "gradeSource": "page",
+    "difficulty": "L1",
+    "tags": [
+      "pointer-humanization"
+    ],
+    "requires": {},
+    "gate": "quality"
+  },
+  {
+    "id": "pointer-properties",
+    "file": "challenges/07-pointer-properties.html",
+    "category": "pointer-humanization",
+    "goal": "Pointer events carry plausible pointerType, pressure, movement, id.",
+    "expected": {
+      "synthetic": "CONDITIONAL",
+      "trusted": "PASS",
+      "manual": "PASS"
+    },
+    "recipe": [
+      {
+        "tool": "chrome_click",
+        "params": {
+          "selector": "#go"
+        }
+      }
+    ],
+    "manualBaseline": "unverified",
+    "gradeSource": "page",
+    "difficulty": "L1",
+    "tags": [
+      "pointer-humanization"
+    ],
+    "requires": {},
+    "gate": "quality"
+  },
+  {
+    "id": "keyboard-cadence",
+    "file": "challenges/08-keyboard-cadence.html",
+    "category": "keyboard",
+    "goal": "Typing emits per-character key events with non-uniform cadence.",
+    "expected": {
+      "synthetic": "CONDITIONAL",
+      "trusted": "PASS",
+      "manual": "PASS"
+    },
+    "recipe": [
+      {
+        "tool": "chrome_type",
+        "params": {
+          "selector": "#t",
+          "text": "secret"
+        }
+      }
+    ],
+    "manualBaseline": "unverified",
+    "gradeSource": "page",
+    "difficulty": "L1",
+    "tags": [
+      "keyboard"
+    ],
+    "requires": {},
+    "thresholds": {},
+    "notes": [
+      "Timing thresholds can be tuned via ?threshold.<name>=value for slower CI or high-polling devices."
+    ],
+    "gate": "quality"
+  },
+  {
+    "id": "composition-input",
+    "file": "challenges/09-composition-input.html",
+    "category": "keyboard",
+    "goal": "Plain ASCII typing has correct beforeinput/input order without fake composition.",
+    "expected": {
+      "synthetic": "PASS",
+      "trusted": "PASS",
+      "manual": "PASS"
+    },
+    "recipe": [
+      {
+        "tool": "chrome_type",
+        "params": {
+          "selector": "#t",
+          "text": "abc"
+        }
+      }
+    ],
+    "manualBaseline": "unverified",
+    "gradeSource": "page",
+    "difficulty": "L1",
+    "tags": [
+      "keyboard"
+    ],
+    "requires": {},
+    "gate": "core"
+  },
+  {
+    "id": "user-activation",
+    "file": "challenges/10-user-activation.html",
+    "category": "activation-gates",
+    "goal": "User activation unlocks clipboard/fullscreen-style gated APIs.",
+    "expected": {
+      "synthetic": "FAIL",
+      "trusted": "CONDITIONAL",
+      "manual": "CONDITIONAL"
+    },
+    "recipe": [
+      {
+        "tool": "chrome_click",
+        "params": {
+          "selector": "#go",
+          "trusted": true
+        }
+      }
+    ],
+    "verdictDelayMs": 800,
+    "prerequisites": [
+      "secure origin",
+      "clipboard/fullscreen allowed by browser policy"
+    ],
+    "flakeRisk": "high",
+    "manualBaseline": "unverified",
+    "gradeSource": "page",
+    "difficulty": "L1",
+    "tags": [
+      "activation-gates"
+    ],
+    "requires": {},
+    "gate": "conditional"
+  },
+  {
+    "id": "honeypot",
+    "file": "challenges/11-honeypot.html",
+    "category": "agent-safety",
+    "goal": "Agent fills only visible intended field, not hidden traps.",
+    "expected": {
+      "synthetic": "PASS",
+      "trusted": "PASS",
+      "manual": "PASS"
+    },
+    "recipe": [
+      {
+        "tool": "chrome_fill",
+        "params": {
+          "selector": "#name",
+          "text": "alex"
+        }
+      },
+      {
+        "tool": "chrome_click",
+        "params": {
+          "selector": "button[type=submit]"
+        }
+      }
+    ],
+    "manualBaseline": "unverified",
+    "gradeSource": "page",
+    "difficulty": "L1",
+    "tags": [
+      "agent-safety"
+    ],
+    "requires": {},
+    "gate": "core"
+  },
+  {
+    "id": "fingerprint",
+    "file": "challenges/12-fingerprint.html",
+    "category": "fingerprint",
+    "goal": "Browser fingerprint is plausible for normal Chrome profile.",
+    "expected": {
+      "synthetic": "CONDITIONAL",
+      "trusted": "CONDITIONAL",
+      "manual": "CONDITIONAL"
+    },
+    "recipe": [
+      {
+        "tool": "chrome_evaluate",
+        "params": {
+          "expression": "JSON.stringify({v:window.__verdict,r:window.__reason})"
+        }
+      }
+    ],
+    "prerequisites": [
+      "non-headless normal Chrome profile"
+    ],
+    "flakeRisk": "medium",
+    "manualBaseline": "unverified",
+    "gradeSource": "page",
+    "difficulty": "L1",
+    "tags": [
+      "fingerprint"
+    ],
+    "requires": {},
+    "gate": "quality"
+  },
+  {
+    "id": "focus-order",
+    "file": "challenges/13-focus-order.html",
+    "category": "focus-keyboard",
+    "goal": "Pointer-driven focus precedes input and does not set focus-visible keyboard affordance.",
+    "expected": {
+      "synthetic": "CONDITIONAL",
+      "trusted": "PASS",
+      "manual": "PASS"
+    },
+    "recipe": [
+      {
+        "tool": "chrome_type",
+        "params": {
+          "selector": "#t",
+          "text": "x",
+          "trusted": true
+        }
+      }
+    ],
+    "flakeRisk": "medium",
+    "manualBaseline": "unverified",
+    "gradeSource": "page",
+    "difficulty": "L1",
+    "tags": [
+      "focus-keyboard"
+    ],
+    "requires": {},
+    "gate": "quality"
+  },
+  {
+    "id": "wheel-scroll",
+    "file": "challenges/14-wheel-scroll.html",
+    "category": "scroll",
+    "goal": "Scrollable element moves via wheel events, not scrollTop teleport.",
+    "expected": {
+      "synthetic": "PASS",
+      "trusted": "PASS",
+      "manual": "PASS"
+    },
+    "recipe": [
+      {
+        "tool": "chrome_scroll",
+        "params": {
+          "selector": "#box",
+          "deltaY": 1200
+        }
+      }
+    ],
+    "manualBaseline": "unverified",
+    "gradeSource": "page",
+    "difficulty": "L1",
+    "tags": [
+      "scroll"
+    ],
+    "requires": {},
+    "gate": "core"
+  },
+  {
+    "id": "drag-drop-datatransfer",
+    "file": "challenges/15-drag-drop-datatransfer.html",
+    "category": "drag-drop",
+    "goal": "HTML5 drag cycle delivers trusted events and populated DataTransfer.",
+    "expected": {
+      "synthetic": "FAIL",
+      "trusted": "CONDITIONAL",
+      "manual": "PASS"
+    },
+    "recipe": [
+      {
+        "tool": "chrome_drag",
+        "params": {
+          "fromSelector": "#src",
+          "toSelector": "#dst",
+          "trusted": true
+        }
+      }
+    ],
+    "notes": [
+      "May need CDP Input.dispatchDragEvent rather than mouse drag on some Chrome versions."
+    ],
+    "manualBaseline": "unverified",
+    "gradeSource": "page",
+    "difficulty": "L1",
+    "tags": [
+      "drag-drop"
+    ],
+    "requires": {},
+    "gate": "conditional"
+  },
+  {
+    "id": "contenteditable-selection",
+    "file": "challenges/16-contenteditable-selection.html",
+    "category": "editing",
+    "goal": "Contenteditable typing advances selection/caret like user typing.",
+    "expected": {
+      "synthetic": "CONDITIONAL",
+      "trusted": "PASS",
+      "manual": "PASS"
+    },
+    "recipe": [
+      {
+        "tool": "chrome_type",
+        "params": {
+          "selector": "#ed",
+          "text": "hello"
+        }
+      }
+    ],
+    "manualBaseline": "unverified",
+    "gradeSource": "page",
+    "difficulty": "L1",
+    "tags": [
+      "editing"
+    ],
+    "requires": {},
+    "gate": "core"
+  },
+  {
+    "id": "paste-clipboard",
+    "file": "challenges/17-paste-clipboard.html",
+    "category": "clipboard",
+    "goal": "Paste uses OS/browser clipboard path with trusted paste event and clipboardData.",
+    "expected": {
+      "synthetic": "FAIL",
+      "trusted": "CONDITIONAL",
+      "manual": "PASS"
+    },
+    "recipe": [
+      {
+        "tool": "chrome_click",
+        "params": {
+          "selector": "#t",
+          "trusted": true
+        }
+      },
+      {
+        "tool": "chrome_key",
+        "params": {
+          "key": "v",
+          "modifiers": {
+            "metaKey": true
+          },
+          "trusted": true
+        }
+      }
+    ],
+    "prerequisites": [
+      "OS clipboard contains pi-chrome",
+      "use ctrlKey instead of metaKey on Windows/Linux"
+    ],
+    "manualBaseline": "unverified",
+    "gradeSource": "page",
+    "difficulty": "L1",
+    "tags": [
+      "clipboard"
+    ],
+    "requires": {},
+    "gate": "conditional"
+  },
+  {
+    "id": "native-select",
+    "file": "challenges/18-native-select.html",
+    "category": "native-controls",
+    "goal": "Native select changes via trusted picker/keyboard path, not .value assignment.",
+    "expected": {
+      "synthetic": "FAIL",
+      "trusted": "CONDITIONAL",
+      "manual": "PASS"
+    },
+    "recipe": [
+      {
+        "tool": "chrome_click",
+        "params": {
+          "selector": "#s",
+          "trusted": true
+        }
+      },
+      {
+        "tool": "chrome_key",
+        "params": {
+          "key": "ArrowDown",
+          "trusted": true
+        }
+      },
+      {
+        "tool": "chrome_key",
+        "params": {
+          "key": "ArrowDown",
+          "trusted": true
+        }
+      },
+      {
+        "tool": "chrome_key",
+        "params": {
+          "key": "Enter",
+          "trusted": true
+        }
+      }
+    ],
+    "flakeRisk": "high",
+    "manualBaseline": "unverified",
+    "gradeSource": "page",
+    "difficulty": "L1",
+    "tags": [
+      "native-controls"
+    ],
+    "requires": {},
+    "gate": "conditional"
+  },
+  {
+    "id": "hover-dwell",
+    "file": "challenges/19-hover-dwell.html",
+    "category": "hover",
+    "goal": "Hover reveal includes dwell, pointer activity, and delayed trusted confirm click.",
+    "expected": {
+      "synthetic": "FAIL",
+      "trusted": "PASS",
+      "manual": "PASS"
+    },
+    "recipe": [
+      {
+        "tool": "chrome_hover",
+        "params": {
+          "selector": "#trig",
+          "trusted": true
+        }
+      },
+      {
+        "tool": "wait",
+        "params": {
+          "ms": 800
+        }
+      },
+      {
+        "tool": "chrome_click",
+        "params": {
+          "selector": "#go",
+          "trusted": true
+        }
+      }
+    ],
+    "manualBaseline": "unverified",
+    "gradeSource": "page",
+    "difficulty": "L1",
+    "tags": [
+      "hover"
+    ],
+    "requires": {},
+    "gate": "core"
+  },
+  {
+    "id": "react-value-tracker",
+    "file": "challenges/20-react-value-tracker.html",
+    "category": "frameworks",
+    "goal": "Programmatic fill uses native value setter so React-style tracker sees change.",
+    "expected": {
+      "synthetic": "PASS",
+      "trusted": "PASS",
+      "manual": "PASS"
+    },
+    "recipe": [
+      {
+        "tool": "chrome_fill",
+        "params": {
+          "selector": "#t",
+          "text": "react-ok"
+        }
+      }
+    ],
+    "manualBaseline": "unverified",
+    "gradeSource": "page",
+    "difficulty": "L1",
+    "tags": [
+      "frameworks"
+    ],
+    "requires": {},
+    "gate": "core"
+  },
+  {
+    "id": "keyboard-modifiers",
+    "file": "challenges/21-keyboard-modifiers.html",
+    "category": "keyboard",
+    "goal": "Shift+a chord has correct ordering, code/key/modifier state, trusted events.",
+    "expected": {
+      "synthetic": "FAIL",
+      "trusted": "PASS",
+      "manual": "PASS"
+    },
+    "recipe": [
+      {
+        "tool": "chrome_key",
+        "params": {
+          "key": "a",
+          "modifiers": {
+            "shiftKey": true
+          },
+          "trusted": true
+        }
+      }
+    ],
+    "manualBaseline": "unverified",
+    "gradeSource": "page",
+    "difficulty": "L1",
+    "tags": [
+      "keyboard"
+    ],
+    "requires": {},
+    "gate": "core"
+  },
+  {
+    "id": "touch-events",
+    "file": "challenges/22-touch-events.html",
+    "category": "touch",
+    "goal": "Touch tap produces real TouchEvent/Touch surface with radius/force.",
+    "expected": {
+      "synthetic": "FAIL",
+      "trusted": "CONDITIONAL",
+      "manual": "CONDITIONAL"
+    },
+    "recipe": [
+      {
+        "tool": "chrome_tap",
+        "params": {
+          "selector": "#pad"
+        }
+      }
+    ],
+    "prerequisites": [
+      "touch events enabled/supported"
+    ],
+    "manualBaseline": "unverified",
+    "gradeSource": "page",
+    "difficulty": "L1",
+    "tags": [
+      "touch"
+    ],
+    "requires": {},
+    "gate": "conditional"
+  },
+  {
+    "id": "stack-trace-fingerprint",
+    "file": "challenges/23-stack-trace-fingerprint.html",
+    "category": "fingerprint",
+    "goal": "Click handler stack does not expose extension/eval automation frames.",
+    "expected": {
+      "synthetic": "FAIL",
+      "trusted": "CONDITIONAL",
+      "manual": "PASS"
+    },
+    "recipe": [
+      {
+        "tool": "chrome_click",
+        "params": {
+          "selector": "#go",
+          "trusted": true
+        }
+      }
+    ],
+    "notes": [
+      "Adversarial probe; selector resolution itself can be detected by monkey-patched DOM APIs.",
+      "Should fail only on concrete automation URLs/Runtime frames, not generic anonymous stack formatting."
+    ],
+    "manualBaseline": "unverified",
+    "gradeSource": "page",
+    "difficulty": "L1",
+    "tags": [
+      "fingerprint"
+    ],
+    "requires": {},
+    "gate": "quality"
+  },
+  {
+    "id": "viewport-edge-clicks",
+    "file": "challenges/24-viewport-edge-clicks.html",
+    "category": "pointer-humanization",
+    "goal": "Click coordinates are valid viewport coordinates inside target.",
+    "expected": {
+      "synthetic": "FAIL",
+      "trusted": "PASS",
+      "manual": "PASS"
+    },
+    "recipe": [
+      {
+        "tool": "chrome_click",
+        "params": {
+          "selector": "#go",
+          "trusted": true
+        }
+      }
+    ],
+    "manualBaseline": "unverified",
+    "gradeSource": "page",
+    "difficulty": "L1",
+    "tags": [
+      "pointer-humanization"
+    ],
+    "requires": {},
+    "gate": "core"
+  },
+  {
+    "id": "pointer-continuity",
+    "file": "challenges/25-pointer-continuity.html",
+    "category": "pointer-humanization",
+    "goal": "Far-apart clicks are bridged by mid-span pointermove samples.",
+    "expected": {
+      "synthetic": "FAIL",
+      "trusted": "PASS",
+      "manual": "PASS"
+    },
+    "recipe": [
+      {
+        "tool": "chrome_click",
+        "params": {
+          "selector": "#a",
+          "trusted": true
+        }
+      },
+      {
+        "tool": "chrome_click",
+        "params": {
+          "selector": "#b",
+          "trusted": true
+        }
+      }
+    ],
+    "manualBaseline": "unverified",
+    "gradeSource": "page",
+    "difficulty": "L1",
+    "tags": [
+      "pointer-humanization"
+    ],
+    "requires": {},
+    "gate": "quality"
+  },
+  {
+    "id": "mousemove-rate",
+    "file": "challenges/26-mousemove-rate.html",
+    "category": "pointer-humanization",
+    "goal": "Mouse sweep produces plausible move frequency and jitter before trusted Done click.",
+    "expected": {
+      "synthetic": "FAIL",
+      "trusted": "CONDITIONAL",
+      "manual": "PASS"
+    },
+    "recipe": [
+      {
+        "tool": "chrome_hover",
+        "params": {
+          "selector": "#pad",
+          "trusted": true
+        }
+      },
+      {
+        "tool": "chrome_click",
+        "params": {
+          "selector": "#go",
+          "trusted": true
+        }
+      }
+    ],
+    "notes": [
+      "Needs a first-class pointer path/sweep tool for deterministic automation.",
+      "Timing thresholds can be tuned via ?threshold.<name>=value for slower CI or high-polling devices."
+    ],
+    "flakeRisk": "high",
+    "manualBaseline": "unverified",
+    "gradeSource": "page",
+    "difficulty": "L1",
+    "tags": [
+      "pointer-humanization"
+    ],
+    "requires": {},
+    "thresholds": {},
+    "gate": "quality"
+  },
+  {
+    "id": "scroll-momentum",
+    "file": "challenges/27-scroll-momentum.html",
+    "category": "scroll",
+    "goal": "Wheel gesture has trusted events with ramp/decay momentum tail.",
+    "expected": {
+      "synthetic": "FAIL",
+      "trusted": "PASS",
+      "manual": "CONDITIONAL"
+    },
+    "recipe": [
+      {
+        "tool": "chrome_scroll",
+        "params": {
+          "selector": "#box",
+          "deltaY": 1600,
+          "trusted": true
+        }
+      }
+    ],
+    "notes": [
+      "Physical detent mouse wheels may fail decay requirement; trackpads usually pass."
+    ],
+    "manualBaseline": "unverified",
+    "gradeSource": "page",
+    "difficulty": "L1",
+    "tags": [
+      "scroll"
+    ],
+    "requires": {},
+    "prerequisites": [
+      "Trackpad-like momentum; physical detent mouse wheels may fail decay requirement even for manual users."
+    ],
+    "gate": "quality"
+  },
+  {
+    "id": "intersection-visibility",
+    "file": "challenges/28-intersection-visibility.html",
+    "category": "scroll-visibility",
+    "goal": "Scrolling reveals target gradually with IO/rAF samples before trusted click.",
+    "expected": {
+      "synthetic": "FAIL",
+      "trusted": "CONDITIONAL",
+      "manual": "PASS"
+    },
+    "recipe": [
+      {
+        "tool": "chrome_scroll",
+        "params": {
+          "selector": "#scroller",
+          "deltaY": 1200,
+          "trusted": true
+        }
+      },
+      {
+        "tool": "chrome_click",
+        "params": {
+          "selector": "#target",
+          "trusted": true
+        }
+      }
+    ],
+    "flakeRisk": "medium",
+    "manualBaseline": "unverified",
+    "gradeSource": "page",
+    "difficulty": "L1",
+    "tags": [
+      "scroll-visibility"
+    ],
+    "requires": {},
+    "gate": "quality"
+  },
+  {
+    "id": "shadow-dom-controls",
+    "file": "challenges/29-shadow-dom-controls.html",
+    "category": "dom-complexity",
+    "goal": "Agent discovers and interacts with controls inside open Shadow DOM.",
+    "expected": {
+      "synthetic": "CONDITIONAL",
+      "trusted": "CONDITIONAL",
+      "manual": "PASS"
+    },
+    "recipe": [
+      {
+        "tool": "chrome_click",
+        "params": {
+          "selector": "#host >>> button"
+        }
+      },
+      {
+        "tool": "chrome_type",
+        "params": {
+          "selector": "#host >>> input",
+          "text": "shadow-ok"
+        }
+      }
+    ],
+    "notes": [
+      "Selector syntax is descriptive; tools may need uid from snapshot rather than CSS.",
+      "Current recipe uses descriptive >>> shadow selector syntax; runners must adapt to supported uids/selectors or use evaluate until bridge supports shadow piercing."
+    ],
+    "manualBaseline": "unverified",
+    "prerequisites": [
+      "pi-chrome shadow-piercing selectors or shadow-root-aware snapshot uids"
+    ],
+    "gradeSource": "page",
+    "difficulty": "L1",
+    "tags": [
+      "dom-complexity"
+    ],
+    "requires": {},
+    "gate": "conditional"
+  },
+  {
+    "id": "iframe-targeting",
+    "file": "challenges/30-iframe-targeting.html",
+    "category": "frames",
+    "goal": "Agent targets interactive controls inside a same-origin iframe and reports verdict to parent.",
+    "expected": {
+      "synthetic": "CONDITIONAL",
+      "trusted": "CONDITIONAL",
+      "manual": "PASS"
+    },
+    "recipe": [
+      {
+        "tool": "chrome_type",
+        "params": {
+          "selector": "iframe#ifr >> #insideText",
+          "text": "frame-ok"
+        }
+      },
+      {
+        "tool": "chrome_click",
+        "params": {
+          "selector": "iframe#ifr >> #insideButton"
+        }
+      }
+    ],
+    "notes": [
+      "Selector syntax is descriptive; benchmark checks whether tool exposes frame-aware uids/selectors."
+    ],
+    "manualBaseline": "unverified",
+    "prerequisites": [
+      "pi-chrome currently targets frameId 0 for many actions; iframe drilling needs frame-targeting support"
+    ],
+    "gradeSource": "page",
+    "difficulty": "L1",
+    "tags": [
+      "frames"
+    ],
+    "requires": {},
+    "gate": "conditional"
+  },
+  {
+    "id": "file-upload",
+    "file": "challenges/31-file-upload.html",
+    "category": "files",
+    "goal": "Agent attaches a local file to an input and page reads expected name/content.",
+    "expected": {
+      "synthetic": "PASS",
+      "trusted": "PASS",
+      "manual": "PASS"
+    },
+    "recipe": [
+      {
+        "tool": "chrome_upload_file",
+        "params": {
+          "selector": "#file",
+          "paths": [
+            "$PWD/test-suite/fixtures/pi-chrome-upload.txt"
+          ]
+        }
+      }
+    ],
+    "manualBaseline": "unverified",
+    "notes": [
+      "Recipe paths may contain $PWD; external runners should expand shell-style placeholders before calling chrome_upload_file."
+    ],
+    "gradeSource": "page",
+    "difficulty": "L1",
+    "tags": [
+      "files"
+    ],
+    "requires": {},
+    "gate": "core"
+  },
+  {
+    "id": "keyboard-tab-navigation",
+    "file": "challenges/32-keyboard-tab-navigation.html",
+    "category": "focus-keyboard",
+    "goal": "Keyboard-only user flow tabs through fields and submits with Enter.",
+    "expected": {
+      "synthetic": "CONDITIONAL",
+      "trusted": "PASS",
+      "manual": "PASS"
+    },
+    "recipe": [
+      {
+        "tool": "chrome_click",
+        "params": {
+          "selector": "#start",
+          "trusted": true
+        }
+      },
+      {
+        "tool": "chrome_key",
+        "params": {
+          "key": "Tab",
+          "trusted": true
+        }
+      },
+      {
+        "tool": "chrome_type",
+        "params": {
+          "text": "one",
+          "trusted": true
+        }
+      },
+      {
+        "tool": "chrome_key",
+        "params": {
+          "key": "Tab",
+          "trusted": true
+        }
+      },
+      {
+        "tool": "chrome_type",
+        "params": {
+          "text": "two",
+          "trusted": true
+        }
+      },
+      {
+        "tool": "chrome_key",
+        "params": {
+          "key": "Tab",
+          "trusted": true
+        }
+      },
+      {
+        "tool": "chrome_type",
+        "params": {
+          "text": "three",
+          "trusted": true
+        }
+      },
+      {
+        "tool": "chrome_key",
+        "params": {
+          "key": "Tab",
+          "trusted": true
+        }
+      },
+      {
+        "tool": "chrome_key",
+        "params": {
+          "key": "Enter",
+          "trusted": true
+        }
+      }
+    ],
+    "manualBaseline": "unverified",
+    "gradeSource": "page",
+    "difficulty": "L1",
+    "tags": [
+      "focus-keyboard"
+    ],
+    "requires": {},
+    "gate": "core"
+  },
+  {
+    "id": "network-console-capture",
+    "file": "challenges/33-network-console-capture.html",
+    "category": "observability",
+    "goal": "Interaction emits console logs and fetch traffic for tool-level capture APIs.",
+    "expected": {
+      "synthetic": "CONDITIONAL",
+      "trusted": "PASS",
+      "manual": "PASS"
+    },
+    "recipe": [
+      {
+        "tool": "chrome_list_console_messages",
+        "params": {
+          "clear": true
+        }
+      },
+      {
+        "tool": "chrome_list_network_requests",
+        "params": {
+          "clear": true
+        }
+      },
+      {
+        "tool": "chrome_click",
+        "params": {
+          "selector": "#go"
+        }
+      },
+      {
+        "tool": "chrome_list_console_messages",
+        "params": {}
+      },
+      {
+        "tool": "chrome_list_network_requests",
+        "params": {}
+      }
+    ],
+    "notes": [
+      "Page verdict only checks in-page fetch result; benchmark harness should also assert captured console/network entries.",
+      "First chrome_list_console_messages/chrome_list_network_requests call installs capture hooks; do not move clear/list calls after click."
+    ],
+    "manualBaseline": "unverified",
+    "gradeSource": "page",
+    "difficulty": "L1",
+    "tags": [
+      "observability"
+    ],
+    "requires": {},
+    "gate": "core"
+  },
+  {
+    "id": "dialog-handling",
+    "file": "challenges/34-dialog-handling.html",
+    "category": "dialogs",
+    "difficulty": "L2",
+    "goal": "Agent detects and handles alert/confirm/prompt/beforeunload browser dialogs.",
+    "expected": {
+      "synthetic": "CONDITIONAL",
+      "trusted": "CONDITIONAL",
+      "manual": "PASS"
+    },
+    "recipe": [
+      {
+        "tool": "chrome_click",
+        "params": {
+          "selector": "#promptBtn",
+          "trusted": true
+        }
+      },
+      {
+        "tool": "dialog",
+        "params": {
+          "type": "prompt",
+          "text": "pi-chrome",
+          "accept": true
+        }
+      },
+      {
+        "tool": "chrome_click",
+        "params": {
+          "selector": "#confirmBtn",
+          "trusted": true
+        }
+      },
+      {
+        "tool": "dialog",
+        "params": {
+          "type": "confirm",
+          "accept": true
+        }
+      }
+    ],
+    "requires": {
+      "dialogs": true
+    },
+    "prerequisites": [
+      "browser-dialog handling API or manual user intervention"
+    ],
+    "tags": [
+      "dialogs",
+      "native-browser-ui"
+    ],
+    "notes": [
+      "If dialog handling is unsupported, page may block after click; this is expected signal."
+    ],
+    "manualBaseline": "unverified",
+    "gradeSource": "page",
+    "gate": "conditional"
+  },
+  {
+    "id": "target-blank-popup",
+    "file": "challenges/35-target-blank-popup.html",
+    "category": "popups",
+    "difficulty": "L1",
+    "goal": "Agent handles target=_blank new tab, discovers it via tab list, and inspects child tab verdict.",
+    "expected": {
+      "synthetic": "CONDITIONAL",
+      "trusted": "PASS",
+      "manual": "PASS"
+    },
+    "recipe": [
+      {
+        "tool": "chrome_click",
+        "params": {
+          "selector": "#open",
+          "trusted": true
+        }
+      },
+      {
+        "tool": "chrome_tab",
+        "params": {
+          "action": "list"
+        }
+      },
+      {
+        "tool": "chrome_snapshot",
+        "params": {
+          "titleIncludes": "target blank popup"
+        }
+      }
+    ],
+    "requires": {
+      "popups": true
+    },
+    "tags": [
+      "tabs",
+      "popup"
+    ],
+    "notes": [
+      "Child tab writes PASS to shared localStorage; harness should verify tab count/title too."
+    ],
+    "manualBaseline": "unverified",
+    "gradeSource": "page",
+    "gate": "core"
+  },
+  {
+    "id": "modal-focus-trap",
+    "file": "challenges/36-modal-focus-trap.html",
+    "category": "focus-keyboard",
+    "difficulty": "L2",
+    "goal": "Keyboard focus stays trapped inside modal and Escape closes with focus restoration.",
+    "expected": {
+      "synthetic": "CONDITIONAL",
+      "trusted": "PASS",
+      "manual": "PASS"
+    },
+    "recipe": [
+      {
+        "tool": "chrome_click",
+        "params": {
+          "selector": "#open",
+          "trusted": true
+        }
+      },
+      {
+        "tool": "chrome_key",
+        "params": {
+          "key": "Tab",
+          "trusted": true
+        }
+      },
+      {
+        "tool": "chrome_key",
+        "params": {
+          "key": "Tab",
+          "trusted": true
+        }
+      },
+      {
+        "tool": "chrome_key",
+        "params": {
+          "key": "Tab",
+          "trusted": true
+        }
+      },
+      {
+        "tool": "chrome_key",
+        "params": {
+          "key": "Escape",
+          "trusted": true
+        }
+      }
+    ],
+    "requires": {
+      "cdp": true
+    },
+    "tags": [
+      "modal",
+      "focus",
+      "keyboard"
+    ],
+    "manualBaseline": "unverified",
+    "gradeSource": "page",
+    "gate": "core"
+  },
+  {
+    "id": "autocomplete-combobox",
+    "file": "challenges/37-autocomplete-combobox.html",
+    "category": "forms",
+    "difficulty": "L2",
+    "goal": "Agent uses ARIA combobox keyboard path: type filter, ArrowDown, Enter.",
+    "expected": {
+      "synthetic": "FAIL",
+      "trusted": "PASS",
+      "manual": "PASS"
+    },
+    "recipe": [
+      {
+        "tool": "chrome_type",
+        "params": {
+          "selector": "#combo",
+          "text": "as",
+          "trusted": true
+        }
+      },
+      {
+        "tool": "chrome_key",
+        "params": {
+          "key": "ArrowDown",
+          "trusted": true
+        }
+      },
+      {
+        "tool": "chrome_key",
+        "params": {
+          "key": "Enter",
+          "trusted": true
+        }
+      }
+    ],
+    "requires": {
+      "cdp": true
+    },
+    "tags": [
+      "aria",
+      "combobox",
+      "forms"
+    ],
+    "manualBaseline": "unverified",
+    "gradeSource": "page",
+    "gate": "core"
+  },
+  {
+    "id": "spa-route-change",
+    "file": "challenges/38-spa-route-change.html",
+    "category": "spa-routing",
+    "difficulty": "L1",
+    "goal": "Agent recognizes SPA pushState navigation and completes route-local action without full reload.",
+    "expected": {
+      "synthetic": "CONDITIONAL",
+      "trusted": "PASS",
+      "manual": "PASS"
+    },
+    "recipe": [
+      {
+        "tool": "chrome_click",
+        "params": {
+          "selector": "#settings",
+          "trusted": true
+        }
+      },
+      {
+        "tool": "chrome_click",
+        "params": {
+          "selector": "#billing",
+          "trusted": true
+        }
+      },
+      {
+        "tool": "chrome_key",
+        "params": {
+          "key": "ArrowLeft",
+          "modifiers": {
+            "altKey": true
+          },
+          "trusted": true
+        }
+      },
+      {
+        "tool": "chrome_click",
+        "params": {
+          "selector": "#billing",
+          "trusted": true
+        }
+      },
+      {
+        "tool": "chrome_click",
+        "params": {
+          "selector": "#save",
+          "trusted": true
+        }
+      }
+    ],
+    "requires": {
+      "cdp": true
+    },
+    "tags": [
+      "spa",
+      "history",
+      "navigation"
+    ],
+    "manualBaseline": "unverified",
+    "gradeSource": "page",
+    "notes": [
+      "Requires a real browser Back action (e.g. Alt+Left) to exercise popstate before Save."
+    ],
+    "gate": "core"
+  },
+  {
+    "id": "strict-csp-fallback",
+    "file": "challenges/39-strict-csp-fallback.html",
+    "category": "csp",
+    "difficulty": "L2",
     "gate": "core",
-    "expected": "synthetic",
-    "task": "Navigate to https://example.com and verify the page title"
+    "goal": "Operate a page with strict CSP that blocks unsafe-eval by falling back to screenshot/viewport-coordinate input.",
+    "expected": {
+      "synthetic": "FAIL",
+      "trusted": "PASS",
+      "manual": "PASS"
+    },
+    "recipe": [
+      {
+        "tool": "chrome_screenshot",
+        "params": {
+          "path": ".pi/chrome-screenshots/strict-csp-fallback.png"
+        }
+      },
+      {
+        "tool": "chrome_click",
+        "params": {
+          "x": 310,
+          "y": 256,
+          "trusted": true
+        }
+      }
+    ],
+    "requires": {
+      "cdp": true
+    },
+    "tags": [
+      "csp",
+      "screenshot",
+      "coordinate-click",
+      "strict-csp"
+    ],
+    "notes": [
+      "This challenge exercises the pure screenshot + viewport-coordinate path (no snapshot/evaluate needed). Note: as of the CDP CSP bypass, chrome_snapshot/chrome_evaluate DO work here even though script-src omits unsafe-eval (see challenge 42 strict-csp-evaluate). Read verdict from dashboard/localStorage after leaving the CSP page."
+    ],
+    "manualBaseline": "unverified",
+    "gradeSource": "page"
+  },
+  {
+    "id": "dynamic-wait-readiness",
+    "file": "challenges/40-dynamic-wait-readiness.html",
+    "category": "lazy-loading",
+    "difficulty": "L1",
+    "gate": "core",
+    "goal": "Wait for an asynchronously mounted and enabled control before clicking it.",
+    "expected": {
+      "synthetic": "FAIL",
+      "trusted": "PASS",
+      "manual": "PASS"
+    },
+    "recipe": [
+      {
+        "tool": "chrome_wait_for",
+        "params": {
+          "kind": "selector",
+          "value": "#readyAction[data-ready=\"true\"]:not([disabled])",
+          "timeoutMs": 3000
+        }
+      },
+      {
+        "tool": "chrome_click",
+        "params": {
+          "selector": "#readyAction",
+          "trusted": true
+        }
+      }
+    ],
+    "requires": {
+      "cdp": true
+    },
+    "tags": [
+      "wait",
+      "async-dom",
+      "readiness"
+    ],
+    "notes": [
+      "Covers explicit wait primitive and avoids fixed sleep as readiness strategy."
+    ],
+    "manualBaseline": "unverified",
+    "gradeSource": "page"
+  },
+  {
+    "id": "tab-lifecycle",
+    "file": "challenges/41-tab-lifecycle.html",
+    "category": "popups",
+    "difficulty": "L2",
+    "gate": "core",
+    "goal": "Create a new tab, inspect it, close it, return to the parent tab, and verify tab lifecycle state.",
+    "expected": {
+      "synthetic": "CONDITIONAL",
+      "trusted": "PASS",
+      "manual": "PASS"
+    },
+    "recipe": [
+      {
+        "tool": "chrome_tab",
+        "params": {
+          "action": "new",
+          "url": "http://127.0.0.1:8765/challenges/41-tab-lifecycle.html?child=1"
+        }
+      },
+      {
+        "tool": "chrome_tab",
+        "params": {
+          "action": "list"
+        }
+      },
+      {
+        "tool": "chrome_snapshot",
+        "params": {
+          "titleIncludes": "tab lifecycle"
+        }
+      },
+      {
+        "tool": "chrome_tab",
+        "params": {
+          "action": "close",
+          "targetId": "<child tab id from list>"
+        }
+      },
+      {
+        "tool": "chrome_tab",
+        "params": {
+          "action": "activate",
+          "targetId": "<parent tab id>"
+        }
+      },
+      {
+        "tool": "chrome_click",
+        "params": {
+          "selector": "#verify",
+          "trusted": true
+        }
+      }
+    ],
+    "requires": {
+      "popups": true
+    },
+    "tags": [
+      "tabs",
+      "new-tab",
+      "close-tab",
+      "activate-tab"
+    ],
+    "notes": [
+      "Recipe contains dynamic tab IDs; runner must substitute ids from chrome_tab list. Complements target=_blank by testing explicit new/close/activate tools."
+    ],
+    "manualBaseline": "unverified",
+    "gradeSource": "page"
+  },
+  {
+    "id": "strict-csp-evaluate",
+    "file": "challenges/42-strict-csp-evaluate.html",
+    "category": "csp",
+    "difficulty": "L2",
+    "gate": "core",
+    "goal": "On a page with strict CSP (script-src 'self', no unsafe-eval), use chrome_evaluate + chrome_snapshot via CDP to read a JS-only secret (window.__cspToken), then submit it with trusted input.",
+    "expected": {
+      "synthetic": "FAIL",
+      "trusted": "PASS",
+      "manual": "PASS"
+    },
+    "recipe": [
+      {
+        "tool": "chrome_evaluate",
+        "params": {
+          "expression": "window.__cspToken"
+        }
+      },
+      {
+        "tool": "chrome_fill",
+        "params": {
+          "selector": "#tokenInput",
+          "value": "$RESULT_OF_chrome_evaluate",
+          "trusted": true
+        }
+      },
+      {
+        "tool": "chrome_click",
+        "params": {
+          "selector": "#verify",
+          "trusted": true
+        }
+      }
+    ],
+    "requires": {
+      "cdp": true
+    },
+    "tags": [
+      "csp",
+      "evaluate",
+      "snapshot",
+      "strict-csp",
+      "cdp-bypass"
+    ],
+    "notes": [
+      "Regression guard for the CDP CSP bypass: chrome_evaluate and chrome_snapshot must work even though script-src omits unsafe-eval (eval/new Function are blocked). The token is non-enumerable and never in the DOM, so it can only be obtained via chrome_evaluate. Runner must substitute the evaluate result into the fill value. synthetic FAIL is due to the trusted-click gate, not eval availability."
+    ],
+    "manualBaseline": "unverified",
+    "gradeSource": "page"
   }
 ]

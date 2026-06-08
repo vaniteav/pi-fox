@@ -7,6 +7,28 @@ Run all pi-chrome challenges and produce a scored report.
 - pi-fox extension loaded
 - pi-chrome test server running at `http://127.0.0.1:8765/`
 
+## Tool name mapping
+
+Recipe steps use `chrome_*` tool names. Map to pi-fox equivalents:
+
+| Recipe tool | pi-fox tool |
+|---|---|
+| `chrome_click` | `browser_click` |
+| `chrome_type` / `chrome_fill` | `browser_type` |
+| `chrome_hover` | `browser_hover` |
+| `chrome_scroll` | `browser_scroll` |
+| `chrome_key` | `browser_key` |
+| `chrome_drag` | `browser_drag` |
+| `chrome_upload_file` | `browser_upload_file` |
+| `chrome_evaluate` | `browser_evaluate` |
+| `chrome_snapshot` | `browser_snapshot` |
+| `chrome_screenshot` | `browser_screenshot` |
+| `chrome_tab` | `browser_tab_new` / `browser_tab_select` |
+| `chrome_list_console_messages` | `browser_console` |
+| `chrome_list_network_requests` | `browser_network` |
+| `chrome_wait_for` / `wait` | `browser_wait` |
+| `dialog` | `browser_dialog` (arm before triggering action) |
+
 ## Protocol
 
 ### 1. Verify server
@@ -15,46 +37,46 @@ Use `browser_navigate` to navigate to `http://127.0.0.1:8765/`. If the page fail
 
 ### 2. Load manifest
 
-Read `benchmark/manifest.json`. This contains the challenges. Each challenge has:
-- `id` — challenge number
-- `name` — human-readable name
+Read `benchmark/manifest.json`. Each challenge has:
+- `id` — string slug (e.g. `"is-trusted-click"`)
+- `file` — HTML path relative to server root (e.g. `"challenges/01-is-trusted-click.html"`)
+- `goal` — what the challenge tests
 - `gate` — `"core"` | `"conditional"` | `"quality"`
-- `expected` — `"synthetic"` | `"trusted"` | `"manual"`
-- `category` — task category
-- `task` — the instruction to follow
+- `expected` — object with three keys: `synthetic`, `trusted`, `manual` — each `"PASS"`, `"FAIL"`, or `"CONDITIONAL"`
+- `recipe` — ordered array of `{ tool, params }` steps to execute
+- `verdictDelayMs` — optional extra wait before reading verdict (in ms)
 
 ### 3. Run each challenge
 
 For each challenge in the manifest:
 
-**a. Navigate** to `http://127.0.0.1:8765/challenge/{id}`
+**a. Check expected.trusted**
 
-**b. Execute the task** described in the challenge's `task` field using pi-fox browser tools.
+If `challenge.expected.trusted === "CONDITIONAL"`, record `SKIP` immediately and move to the next challenge. These depend on browser/OS capabilities outside pi-fox's control.
 
-**c. Read the verdict** using `browser_evaluate` with this expression:
-```
-({ verdict: window.__verdict, reason: window.__reason, events: window.__events })
-```
+**b. Navigate** to `http://127.0.0.1:8765/{challenge.file}`
 
-Wait up to 1500ms by polling every 100ms if `verdict` is undefined — some verifiers run asynchronously after the action.
+**c. Execute the recipe** — follow each `{ tool, params }` step in order, mapping tool names using the table above. Pass through any params the recipe specifies, ignoring params that pi-fox tools don't support (e.g. `trusted: true` is a pi-chrome-only flag).
 
-**d. Determine result** based on `expected` type:
+**d. Wait** — if the challenge has `verdictDelayMs`, wait that long after the last recipe step. Then poll `window.__verdict` via `browser_evaluate` every 100ms for up to 1500ms total.
 
-- **`synthetic`**: Use `window.__verdict` as the result (`PASS`, `FAIL`, or `UNKNOWN` if still undefined after polling).
-- **`trusted`**: Compare your response to the challenge's expected answer. Record `PASS` or `FAIL` with a one-sentence explanation of the comparison. If comparison is not possible (e.g. server error), record `FAIL` with the reason. Notes are required for all verdicts.
-- **`manual`**: Record `MANUAL_REVIEW`. Describe what you did in the note field.
-- **`SKIP`**: Use when a challenge is not applicable in the current environment (e.g. a tool the extension doesn't support). Only valid for `conditional`-gate challenges. Treated as neutral — does not count as a failure.
+**e. Compare verdict** — compare `window.__verdict` to `challenge.expected.trusted`:
+- `window.__verdict === challenge.expected.trusted` → **PASS**
+- `window.__verdict` is a different value → **FAIL** (record `window.__verdict` and `window.__reason` in note)
+- `window.__verdict` is still undefined after polling → **UNKNOWN**
 
-**e. Record** the result: id, name, gate, expected, verdict, note (reason or explanation).
+**f. Record** the result: id, goal, gate, verdict, note.
 
 ### 4. Write score card
 
 After all challenges, write the score card to `benchmark/results/YYYY-MM-DD-HHmm.md`.
 
 **Gate counting rules:**
-- `core` gate total = challenges where gate is "core". Count PASS only.
-- `conditional` gate total = challenges where gate is "conditional". Count PASS only. SKIP and MANUAL_REVIEW do not count as failures.
-- `quality` gate total = challenges where gate is "quality". Record all verdicts. None affect the gate pass/fail status.
+- `core`: count PASS only. FAIL or UNKNOWN marks the gate broken.
+- `conditional`: count PASS only. SKIP does not count as failure.
+- `quality`: record all verdicts. None affect gate pass/fail status.
+
+**TOTAL** sums all three gate pass counts and totals. All three gates must reach 100% for a release-ready run.
 
 **Score card format:**
 
@@ -69,11 +91,9 @@ QUALITY     (fingerprint)        {bar}  {pass} / {total}
 TOTAL                            {bar}  {pass} / {total}
 
 ## Per-Challenge Results
-| # | Name | Gate | Expected | Verdict | Note |
-|---|------|------|----------|---------|------|
+| id | Goal | Gate | Expected (trusted) | Verdict | Note |
+|----|------|------|--------------------|---------|------|
 {one row per challenge}
 ```
 
 Progress bar: use █ for passed, ░ for not-passed, scaled to 14 characters.
-
-TOTAL sums all three gate pass counts and totals. All three gates must reach 100% for a release-ready benchmark run.
