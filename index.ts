@@ -1383,9 +1383,10 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 			try {
 				const entries = filterConsoleLogs(captureState.consoleLogs, params.type, params.limit ?? 50);
 				if (params.clear) captureState.consoleLogs = [];
-				if (entries.length === 0) return { text: "No console logs captured." };
-				const lines = entries.map(e => `[${e.type.toUpperCase()}] ${e.text}`).join("\n");
-				return { text: `${entries.length} console log(s):\n${lines}` };
+				const consoleText = entries.length === 0
+					? "No console logs captured."
+					: `${entries.length} console log(s):\n${entries.map(e => `[${e.type.toUpperCase()}] ${e.text}`).join("\n")}`;
+				return { content: [{ type: "text" as const, text: consoleText }], details: {} };
 			} catch (err) {
 				const msg = err instanceof Error ? err.message : String(err);
 				return toolError(`Console read failed: ${msg}`);
@@ -1412,11 +1413,10 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 			try {
 				const entries = filterNetworkRequests(captureState.networkRequests, params.urlContains, params.method);
 				if (params.clear) captureState.networkRequests = [];
-				if (entries.length === 0) return { text: "No network requests captured." };
-				const lines = entries.map(e =>
-					`[${e.method}] ${e.url} → ${e.status ?? "pending"}`
-				).join("\n");
-				return { text: `${entries.length} request(s):\n${lines}` };
+				const networkText = entries.length === 0
+					? "No network requests captured."
+					: `${entries.length} request(s):\n${entries.map(e => `[${e.method}] ${e.url} → ${e.status ?? "pending"}`).join("\n")}`;
+				return { content: [{ type: "text" as const, text: networkText }], details: {} };
 			} catch (err) {
 				const msg = err instanceof Error ? err.message : String(err);
 				return toolError(`Network read failed: ${msg}`);
@@ -1443,7 +1443,7 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 		async execute(_toolCallId, params) {
 			try {
 				captureState.pendingDialog = { action: params.action, promptText: params.promptText };
-				return { text: `Dialog handler armed: will ${params.action} the next dialog.` };
+				return { content: [{ type: "text" as const, text: `Dialog handler armed: will ${params.action} the next dialog.` }], details: {} };
 			} catch (err) {
 				const msg = err instanceof Error ? err.message : String(err);
 				return toolError(`Dialog arm failed: ${msg}`);
