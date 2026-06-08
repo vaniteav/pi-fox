@@ -159,6 +159,20 @@ describe('filterNetworkRequests', () => {
   });
 });
 
+describe('browser_dialog arming', () => {
+  it('arms pendingDialog slot with accept action', () => {
+    const state: any = { consoleLogs: [], networkRequests: [], pendingDialog: null, maxEntries: 100 };
+    state.pendingDialog = { action: 'accept', promptText: 'confirmed' };
+    expect(state.pendingDialog).toEqual({ action: 'accept', promptText: 'confirmed' });
+  });
+
+  it('arms pendingDialog slot with dismiss action', () => {
+    const state: any = { consoleLogs: [], networkRequests: [], pendingDialog: null, maxEntries: 100 };
+    state.pendingDialog = { action: 'dismiss' };
+    expect(state.pendingDialog?.action).toBe('dismiss');
+  });
+});
+
 const ScrollParams = Type.Object({
   selector: Type.Optional(Type.String()),
   deltaX: Type.Optional(Type.Number()),

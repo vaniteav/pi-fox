@@ -1424,6 +1424,33 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 		},
 	});
 
+	pi.registerTool({
+		name: "browser_dialog",
+		label: "Browser Dialog",
+		description: "Arm a handler for the next browser dialog (alert, confirm, or prompt). Call this BEFORE the action that triggers the dialog.",
+		promptSnippet: "Arm a handler for the next browser dialog",
+		promptGuidelines: [
+			"CRITICAL: Call browser_dialog BEFORE the action that triggers the dialog, not after.",
+			"Dialogs that fire without an armed handler are auto-dismissed.",
+			"Use promptText to supply input for window.prompt() dialogs.",
+		],
+		parameters: Type.Object({
+			action: Type.Union([Type.Literal("accept"), Type.Literal("dismiss")], {
+				description: "Whether to accept or dismiss the dialog",
+			}),
+			promptText: Type.Optional(Type.String({ description: "Text to enter for window.prompt() dialogs" })),
+		}),
+		async execute(_toolCallId, params) {
+			try {
+				captureState.pendingDialog = { action: params.action, promptText: params.promptText };
+				return { text: `Dialog handler armed: will ${params.action} the next dialog.` };
+			} catch (err) {
+				const msg = err instanceof Error ? err.message : String(err);
+				return toolError(`Dialog arm failed: ${msg}`);
+			}
+		},
+	});
+
 	// =======================================================================
 	// WEB SEARCH TOOLS
 	// =======================================================================
