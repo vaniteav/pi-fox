@@ -76,7 +76,7 @@ After all challenges, write the score card to `benchmark/results/YYYY-MM-DD-HHmm
 - `conditional`: count PASS only. SKIP does not count as failure.
 - `quality`: record all verdicts. None affect gate pass/fail status.
 
-**TOTAL** sums all three gate pass counts and totals. All three gates must reach 100% for a release-ready run.
+**TOTAL** sums all three gate pass counts and totals. A run is release-ready when CORE is 100% (zero FAIL or UNKNOWN). CONDITIONAL rate is computed excluding SKIPs from the denominator. QUALITY is informational only and never affects release readiness.
 
 **Score card format:**
 

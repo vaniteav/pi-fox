@@ -149,6 +149,7 @@ interface PendingDialogHandler {
 interface CaptureState {
 	consoleLogs: ConsoleEntry[];
 	networkRequests: NetworkEntry[];
+	pendingNetworkQueue: Array<{ req: import("playwright").Request; entry: NetworkEntry }>;
 	pendingDialog: PendingDialogHandler | null;
 	maxEntries: number;
 }
@@ -358,9 +359,6 @@ export function attachPageCapture(
 	page: import("playwright").Page,
 	captureState: CaptureState
 ): void {
-	const pendingRequests = new Map<import("playwright").Request, NetworkEntry>();
-	const pendingRequestsQueue: Array<import("playwright").Request> = [];
-
 	page.on("console", (msg) => {
 		captureState.consoleLogs.push({ type: msg.type(), text: msg.text(), timestamp: Date.now() });
 		if (captureState.consoleLogs.length > captureState.maxEntries)
@@ -370,22 +368,20 @@ export function attachPageCapture(
 	page.on("request", (req) => {
 		const entry: NetworkEntry = { method: req.method(), url: req.url(), status: null, timestamp: Date.now() };
 		captureState.networkRequests.push(entry);
-		pendingRequests.set(req, entry);
-		pendingRequestsQueue.push(req);
+		captureState.pendingNetworkQueue.push({ req, entry });
 		if (captureState.networkRequests.length > captureState.maxEntries) {
-			captureState.networkRequests.shift();
-			const evicted = pendingRequestsQueue.shift();
-			if (evicted) pendingRequests.delete(evicted);
+			const evicted = captureState.networkRequests.shift()!;
+			const idx = captureState.pendingNetworkQueue.findIndex(item => item.entry === evicted);
+			if (idx !== -1) captureState.pendingNetworkQueue.splice(idx, 1);
 		}
 	});
 
 	page.on("response", (res) => {
-		const entry = pendingRequests.get(res.request());
-		if (entry) {
-			entry.status = res.status();
-			pendingRequests.delete(res.request());
-			const idx = pendingRequestsQueue.indexOf(res.request());
-			if (idx !== -1) pendingRequestsQueue.splice(idx, 1);
+		const request = res.request();
+		const idx = captureState.pendingNetworkQueue.findIndex(item => item.req === request);
+		if (idx !== -1) {
+			captureState.pendingNetworkQueue[idx].entry.status = res.status();
+			captureState.pendingNetworkQueue.splice(idx, 1);
 		}
 	});
 
@@ -855,6 +851,7 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 	const captureState: CaptureState = {
 		consoleLogs: [],
 		networkRequests: [],
+		pendingNetworkQueue: [],
 		pendingDialog: null,
 		maxEntries: 500,
 	};
@@ -1331,6 +1328,7 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 			"Use deltaY > 0 to scroll down, < 0 to scroll up.",
 			"Provide selector without deltas to scroll an element into view.",
 			"Provide selector with deltas to scroll within that element's scroll container.",
+			"Omitting all arguments scrolls the page by zero pixels — pass deltaY or a selector to scroll meaningfully.",
 		],
 		parameters: Type.Object({
 			selector: Type.Optional(Type.String({ description: "CSS selector of element to scroll within or into view" })),

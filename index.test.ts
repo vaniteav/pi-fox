@@ -12,6 +12,7 @@ describe('CaptureState', () => {
     const state = {
       consoleLogs: [] as Array<{ type: string; text: string; timestamp: number }>,
       networkRequests: [] as Array<{ method: string; url: string; status: number | null; timestamp: number }>,
+      pendingNetworkQueue: [] as Array<{ req: unknown; entry: unknown }>,
       pendingDialog: null as null | { action: 'accept' | 'dismiss'; promptText?: string },
       maxEntries: 500,
     };
@@ -32,7 +33,7 @@ function makeMockPage() {
 
 describe('attachPageCapture', () => {
   it('caps consoleLogs at maxEntries using ring buffer', () => {
-    const state: any = { consoleLogs: [], networkRequests: [], pendingDialog: null, maxEntries: 3 };
+    const state: any = { consoleLogs: [], networkRequests: [], pendingNetworkQueue: [], pendingDialog: null, maxEntries: 3 };
     const page = makeMockPage() as any;
     attachPageCapture(page, state);
 
@@ -45,8 +46,56 @@ describe('attachPageCapture', () => {
     expect(state.consoleLogs[2].text).toBe('msg3');
   });
 
+  it('caps networkRequests at maxEntries and evicts pending queue entry by identity', () => {
+    const state: any = { consoleLogs: [], networkRequests: [], pendingNetworkQueue: [], pendingDialog: null, maxEntries: 3 };
+    const page = makeMockPage() as any;
+    attachPageCapture(page, state);
+
+    const req1 = { method: () => 'GET', url: () => 'https://a.com/1' };
+    const req2 = { method: () => 'GET', url: () => 'https://a.com/2' };
+    const req3 = { method: () => 'GET', url: () => 'https://a.com/3' };
+    const req4 = { method: () => 'GET', url: () => 'https://a.com/4' };
+
+    page.emit('request', req1);
+    page.emit('request', req2);
+    page.emit('request', req3);
+    page.emit('request', req4); // evicts req1 entry
+
+    expect(state.networkRequests).toHaveLength(3);
+    expect(state.networkRequests[0].url).toBe('https://a.com/2');
+
+    // evicted entry must be removed from pendingNetworkQueue
+    const pendingUrls = state.pendingNetworkQueue.map((item: any) => item.entry.url);
+    expect(pendingUrls).not.toContain('https://a.com/1');
+
+    // a late response for evicted req1 must not mutate networkRequests
+    page.emit('response', { status: () => 999, request: () => req1 });
+    expect(state.networkRequests.find((e: any) => e.url === 'https://a.com/1')).toBeUndefined();
+  });
+
+  it('caps networkRequests correctly when evicted entry was already resolved', () => {
+    const state: any = { consoleLogs: [], networkRequests: [], pendingNetworkQueue: [], pendingDialog: null, maxEntries: 2 };
+    const page = makeMockPage() as any;
+    attachPageCapture(page, state);
+
+    const req1 = { method: () => 'GET', url: () => 'https://a.com/1' };
+    const req2 = { method: () => 'GET', url: () => 'https://a.com/2' };
+    const req3 = { method: () => 'GET', url: () => 'https://a.com/3' };
+
+    page.emit('request', req1);
+    page.emit('response', { status: () => 200, request: () => req1 }); // req1 resolved before eviction
+    page.emit('request', req2);
+    page.emit('request', req3); // evicts req1 entry (already resolved — not in pendingNetworkQueue)
+
+    expect(state.networkRequests).toHaveLength(2);
+    expect(state.networkRequests[0].url).toBe('https://a.com/2');
+    // pendingNetworkQueue should only contain req2 and req3 (req1 was removed on response)
+    const pendingUrls = state.pendingNetworkQueue.map((item: any) => item.entry.url);
+    expect(pendingUrls).not.toContain('https://a.com/1');
+  });
+
   it('matches response to request by object identity, not URL', () => {
-    const state: any = { consoleLogs: [], networkRequests: [], pendingDialog: null, maxEntries: 100 };
+    const state: any = { consoleLogs: [], networkRequests: [], pendingNetworkQueue: [], pendingDialog: null, maxEntries: 100 };
     const page = makeMockPage() as any;
     attachPageCapture(page, state);
 
@@ -62,7 +111,7 @@ describe('attachPageCapture', () => {
   });
 
   it('auto-dismisses dialog when pendingDialog is null', async () => {
-    const state: any = { consoleLogs: [], networkRequests: [], pendingDialog: null, maxEntries: 100 };
+    const state: any = { consoleLogs: [], networkRequests: [], pendingNetworkQueue: [], pendingDialog: null, maxEntries: 100 };
     const page = makeMockPage() as any;
     attachPageCapture(page, state);
 
@@ -76,7 +125,7 @@ describe('attachPageCapture', () => {
   });
 
   it('accepts dialog when pendingDialog is armed with accept', async () => {
-    const state: any = { consoleLogs: [], networkRequests: [], pendingDialog: { action: 'accept', promptText: 'yes' }, maxEntries: 100 };
+    const state: any = { consoleLogs: [], networkRequests: [], pendingNetworkQueue: [], pendingDialog: { action: 'accept', promptText: 'yes' }, maxEntries: 100 };
     const page = makeMockPage() as any;
     attachPageCapture(page, state);
 
@@ -91,7 +140,7 @@ describe('attachPageCapture', () => {
   });
 
   it('dismisses dialog when pendingDialog is armed with dismiss', async () => {
-    const state: any = { consoleLogs: [], networkRequests: [], pendingDialog: { action: 'dismiss' }, maxEntries: 100 };
+    const state: any = { consoleLogs: [], networkRequests: [], pendingNetworkQueue: [], pendingDialog: { action: 'dismiss' }, maxEntries: 100 };
     const page = makeMockPage() as any;
     attachPageCapture(page, state);
 
@@ -159,17 +208,34 @@ describe('filterNetworkRequests', () => {
   });
 });
 
+// browser_dialog.execute() sets captureState.pendingDialog — tested here by simulating that
+// assignment and verifying the listener handles it. execute() lives inside the registerTool
+// closure and cannot be imported directly; these tests verify the arm-then-handle contract.
 describe('browser_dialog arming', () => {
-  it('arms pendingDialog slot with accept action', () => {
-    const state: any = { consoleLogs: [], networkRequests: [], pendingDialog: null, maxEntries: 100 };
-    state.pendingDialog = { action: 'accept', promptText: 'confirmed' };
-    expect(state.pendingDialog).toEqual({ action: 'accept', promptText: 'confirmed' });
+  it('armed accept handler is consumed by dialog listener', async () => {
+    const state: any = { consoleLogs: [], networkRequests: [], pendingNetworkQueue: [], pendingDialog: { action: 'accept', promptText: 'input' }, maxEntries: 100 };
+    const page = makeMockPage() as any;
+    attachPageCapture(page, state);
+
+    let accepted: string | undefined;
+    page.emit('dialog', { accept: async (t?: string) => { accepted = t; }, dismiss: async () => {} });
+    await new Promise(r => setTimeout(r, 10));
+
+    expect(accepted).toBe('input');
+    expect(state.pendingDialog).toBeNull();
   });
 
-  it('arms pendingDialog slot with dismiss action', () => {
-    const state: any = { consoleLogs: [], networkRequests: [], pendingDialog: null, maxEntries: 100 };
-    state.pendingDialog = { action: 'dismiss' };
-    expect(state.pendingDialog?.action).toBe('dismiss');
+  it('armed dismiss handler is consumed by dialog listener', async () => {
+    const state: any = { consoleLogs: [], networkRequests: [], pendingNetworkQueue: [], pendingDialog: { action: 'dismiss' }, maxEntries: 100 };
+    const page = makeMockPage() as any;
+    attachPageCapture(page, state);
+
+    let dismissed = false;
+    page.emit('dialog', { accept: async () => {}, dismiss: async () => { dismissed = true; } });
+    await new Promise(r => setTimeout(r, 10));
+
+    expect(dismissed).toBe(true);
+    expect(state.pendingDialog).toBeNull();
   });
 });
 
