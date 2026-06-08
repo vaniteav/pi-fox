@@ -139,3 +139,10 @@ describe('browser_hover params', () => {
   it('accepts selector with position', () => { expect(Value.Check(HoverParams, { selector: '#btn', position: { x: 10, y: 5 } })).toBe(true); });
   it('rejects missing selector', () => { expect(Value.Check(HoverParams, {})).toBe(false); });
 });
+
+const DragParams = Type.Object({ source: Type.String(), target: Type.String() });
+
+describe('browser_drag params', () => {
+  it('accepts source and target', () => { expect(Value.Check(DragParams, { source: '#item', target: '#drop-zone' })).toBe(true); });
+  it('rejects missing target', () => { expect(Value.Check(DragParams, { source: '#item' })).toBe(false); });
+});

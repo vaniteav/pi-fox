@@ -1217,6 +1217,33 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 	});
 
 	pi.registerTool({
+		name: "browser_drag",
+		label: "Browser Drag",
+		description: "Drag an element and drop it onto another element.",
+		promptSnippet: "browser_drag({ source: '#draggable', target: '#dropzone' })",
+		promptGuidelines: [
+			"Both source and target must be valid CSS selectors.",
+			"Uses Playwright's dragAndDrop which fires pointerdown, drag, and drop events.",
+		],
+		parameters: Type.Object({
+			source: Type.String({ description: "CSS selector of the element to drag" }),
+			target: Type.String({ description: "CSS selector of the drop target" }),
+		}),
+		async execute(_toolCallId, params) {
+			try {
+				const page = await getPage(browserState, captureState);
+				await page.dragAndDrop(params.source, params.target);
+				return await withSupervisedScreenshot(browserState, "browser_drag", params, async () => ({
+					text: `Dragged "${params.source}" onto "${params.target}"`,
+				}));
+			} catch (err) {
+				const msg = err instanceof Error ? err.message : String(err);
+				return toolError(`Drag failed: ${msg}`, { source: params.source, target: params.target });
+			}
+		},
+	});
+
+	pi.registerTool({
 		name: "browser_hover",
 		label: "Browser Hover",
 		description: "Move the mouse cursor over an element to trigger hover effects, tooltips, or dropdown menus.",
