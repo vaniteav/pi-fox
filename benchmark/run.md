@@ -27,6 +27,8 @@ Recipe steps use `chrome_*` tool names. Map to pi-fox equivalents:
 | `chrome_list_console_messages` | `browser_console` |
 | `chrome_list_network_requests` | `browser_network` |
 | `chrome_wait_for` / `wait` | `browser_wait` |
+| `chrome_back` / `chrome_go_back` | `browser_back` |
+| `chrome_forward` / `chrome_go_forward` | `browser_forward` |
 | `dialog` | `browser_dialog` (arm before triggering action) |
 
 ## Protocol
