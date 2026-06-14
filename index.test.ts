@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { EventEmitter } from 'events';
 import { Type } from '@sinclair/typebox';
 import { Value } from '@sinclair/typebox/value';
-import { attachPageCapture, filterConsoleLogs, filterNetworkRequests } from './index';
+import { attachPageCapture, filterConsoleLogs, filterNetworkRequests, isBlockedIp, validateFetchUrlScheme, customProviderCodeAllowed, uploadPathAllowed } from './index';
+import { resolve as resolvePath } from 'node:path';
 
 // These will fail until the types and exports are added to index.ts
 // Import will be added once exports exist — for now test the shape inline
@@ -286,4 +287,74 @@ describe('browser_upload_file params', () => {
   it('accepts selector and paths array', () => { expect(Value.Check(UploadParams, { selector: 'input[type=file]', paths: ['/tmp/file.png'] })).toBe(true); });
   it('accepts multiple paths', () => { expect(Value.Check(UploadParams, { selector: 'input[type=file]', paths: ['/a.png', '/b.png'] })).toBe(true); });
   it('rejects non-array paths', () => { expect(Value.Check(UploadParams, { selector: 'input[type=file]', paths: '/a.png' })).toBe(false); });
+});
+
+describe('isBlockedIp — SSRF guard', () => {
+  it('blocks IPv4 loopback', () => { expect(isBlockedIp('127.0.0.1')).toBe(true); });
+  it('blocks 127/8 anywhere in range', () => { expect(isBlockedIp('127.255.255.254')).toBe(true); });
+  it('blocks 10/8 private', () => { expect(isBlockedIp('10.0.0.5')).toBe(true); });
+  it('blocks 172.16/12 private', () => { expect(isBlockedIp('172.16.0.1')).toBe(true); });
+  it('does NOT block 172.32 (outside 172.16/12)', () => { expect(isBlockedIp('172.32.0.1')).toBe(false); });
+  it('blocks 192.168/16 private', () => { expect(isBlockedIp('192.168.1.1')).toBe(true); });
+  it('blocks link-local 169.254/16', () => { expect(isBlockedIp('169.254.10.20')).toBe(true); });
+  it('blocks cloud metadata 169.254.169.254', () => { expect(isBlockedIp('169.254.169.254')).toBe(true); });
+  it('blocks CGNAT 100.64/10', () => { expect(isBlockedIp('100.64.0.1')).toBe(true); });
+  it('blocks 0.0.0.0', () => { expect(isBlockedIp('0.0.0.0')).toBe(true); });
+  it('blocks IPv6 loopback ::1', () => { expect(isBlockedIp('::1')).toBe(true); });
+  it('blocks IPv6 unspecified ::', () => { expect(isBlockedIp('::')).toBe(true); });
+  it('blocks IPv6 unique-local fc00::/7', () => { expect(isBlockedIp('fc00::1')).toBe(true); });
+  it('blocks IPv6 link-local fe80::/10', () => { expect(isBlockedIp('fe80::1')).toBe(true); });
+  it('blocks IPv4-mapped IPv6 to a private addr', () => { expect(isBlockedIp('::ffff:127.0.0.1')).toBe(true); });
+  it('blocks COMPRESSED IPv4-mapped IPv6 loopback (::ffff:7f00:1)', () => { expect(isBlockedIp('::ffff:7f00:1')).toBe(true); });
+  it('blocks COMPRESSED IPv4-mapped IPv6 private (::ffff:c0a8:1 = 192.168.0.1)', () => { expect(isBlockedIp('::ffff:c0a8:1')).toBe(true); });
+  it('still allows COMPRESSED IPv4-mapped public (::ffff:808:808 = 8.8.8.8)', () => { expect(isBlockedIp('::ffff:808:808')).toBe(false); });
+  it('allows public IPv4 8.8.8.8', () => { expect(isBlockedIp('8.8.8.8')).toBe(false); });
+  it('allows public IPv4 1.1.1.1', () => { expect(isBlockedIp('1.1.1.1')).toBe(false); });
+  it('allows public IPv6 2606:4700::1111', () => { expect(isBlockedIp('2606:4700::1111')).toBe(false); });
+});
+
+describe('uploadPathAllowed — upload root allowlist', () => {
+  it('allows any path when no roots are configured (non-breaking default)', () => {
+    expect(uploadPathAllowed('/etc/passwd', [])).toBe(true);
+    expect(uploadPathAllowed('/etc/passwd', undefined)).toBe(true);
+  });
+  it('allows a path inside an allowed root', () => {
+    const root = resolvePath('uploads');
+    expect(uploadPathAllowed(resolvePath('uploads/a.png'), [root])).toBe(true);
+  });
+  it('allows the root itself', () => {
+    const root = resolvePath('uploads');
+    expect(uploadPathAllowed(root, [root])).toBe(true);
+  });
+  it('blocks a path outside all allowed roots', () => {
+    expect(uploadPathAllowed(resolvePath('/etc/passwd'), [resolvePath('uploads')])).toBe(false);
+  });
+  it('blocks traversal that escapes the root', () => {
+    const root = resolvePath('uploads');
+    expect(uploadPathAllowed(resolvePath('uploads/../secrets/key'), [root])).toBe(false);
+  });
+  it('does not treat a sibling sharing a name prefix as inside', () => {
+    expect(uploadPathAllowed(resolvePath('uploads-evil/x'), [resolvePath('uploads')])).toBe(false);
+  });
+});
+
+describe('customProviderCodeAllowed — RCE gate', () => {
+  it('blocks by default when the trust flag is unset', () => { expect(customProviderCodeAllowed({ ext: {} } as any)).toBe(false); });
+  it('blocks when the trust flag is explicitly false', () => { expect(customProviderCodeAllowed({ ext: { trustCustomProviders: false } } as any)).toBe(false); });
+  it('allows only when the trust flag is strictly true', () => { expect(customProviderCodeAllowed({ ext: { trustCustomProviders: true } } as any)).toBe(true); });
+  it('does NOT allow on truthy-but-not-true values (no coercion)', () => {
+    expect(customProviderCodeAllowed({ ext: { trustCustomProviders: 1 } } as any)).toBe(false);
+    expect(customProviderCodeAllowed({ ext: { trustCustomProviders: 'true' } } as any)).toBe(false);
+  });
+});
+
+describe('validateFetchUrlScheme — SSRF guard', () => {
+  it('allows https', () => { expect(validateFetchUrlScheme('https://example.com').ok).toBe(true); });
+  it('allows http', () => { expect(validateFetchUrlScheme('http://example.com').ok).toBe(true); });
+  it('rejects file://', () => { expect(validateFetchUrlScheme('file:///etc/passwd').ok).toBe(false); });
+  it('rejects ftp://', () => { expect(validateFetchUrlScheme('ftp://host/x').ok).toBe(false); });
+  it('rejects unparseable url', () => { expect(validateFetchUrlScheme('not a url').ok).toBe(false); });
+  it('rejects a literal-IP host that is private', () => { expect(validateFetchUrlScheme('http://127.0.0.1:8080/admin').ok).toBe(false); });
+  it('rejects literal metadata IP host', () => { expect(validateFetchUrlScheme('http://169.254.169.254/latest/meta-data/').ok).toBe(false); });
+  it('allows a literal public-IP host', () => { expect(validateFetchUrlScheme('http://8.8.8.8/').ok).toBe(true); });
 });

@@ -48,9 +48,11 @@
 
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, readFileSync, writeFileSync, mkdirSync, realpathSync } from "node:fs";
+import { join, resolve as resolvePath, sep as pathSep } from "node:path";
 import { homedir } from "node:os";
+import { BlockList, isIP } from "node:net";
+import { lookup as dnsLookup } from "node:dns/promises";
 import TurndownService from "turndown";
 
 // Stateless singleton — do not call addRule() here; create a new instance for per-call customization.
@@ -80,6 +82,19 @@ interface ExtConfig {
 	headless?: boolean;
 	suppressStartupMessage?: boolean;
 	customProviders?: CustomProviderConfig[];
+	/**
+	 * Custom-provider transforms are arbitrary JS compiled with new Function(). Modeled on
+	 * VS Code Workspace Trust, that code stays inert unless the user EXPLICITLY opts in by
+	 * setting this to literal true — so a config imported/synced from an untrusted source
+	 * cannot achieve code execution on its own.
+	 */
+	trustCustomProviders?: boolean;
+	/**
+	 * Optional allowlist of directory roots that browser_upload_file may read from. When set,
+	 * any upload path resolving outside every root is rejected — preventing an agent from
+	 * exfiltrating arbitrary local files (e.g. SSH keys) to a page. Unset = no restriction.
+	 */
+	allowedUploadRoots?: string[];
 }
 
 /** Settings snapshot — read once per tool call, passed everywhere. Zero extra disk reads. */
@@ -87,9 +102,6 @@ interface Config {
 	raw: Record<string, unknown>;
 	ext: ExtConfig;
 }
-
-/** Explicit success/failure — errors collected and surfaced, never swallowed. */
-type Result<T> = { ok: true; value: T } | { ok: false; error: string; provider?: string };
 
 interface SearchResult {
 	answer: string;
@@ -426,7 +438,9 @@ const NavigateParams = Type.Object({
 });
 
 const ClickParams = Type.Object({
-	selector: Type.String({ description: "CSS selector or element role to click, e.g. 'button.login', 'text=Submit', 'css=#submit-btn'" }),
+	selector: Type.Optional(Type.String({ description: "CSS selector or element role to click, e.g. 'button.login', 'text=Submit', 'css=#submit-btn'. Omit when clicking by x/y coordinates." })),
+	x: Type.Optional(Type.Number({ description: "Viewport X coordinate to click. Provide with 'y' to click by position (e.g. from a screenshot) instead of a selector — needed under strict CSP where evaluate/selectors are unavailable." })),
+	y: Type.Optional(Type.Number({ description: "Viewport Y coordinate to click. Provide with 'x'." })),
 	timeout: Type.Optional(Type.Number({ description: "Timeout in ms. Default: 10000" })),
 });
 
@@ -508,11 +522,6 @@ function loadCache(key: string): Record<string, unknown> | null {
 	} catch {
 		return null;
 	}
-}
-
-/** EFF-4 fix: O(1) direct key lookup — urlToCacheKey already provides the deterministic filename. */
-function findCacheByUrl(url: string): Record<string, unknown> | null {
-	return loadCache(`fetch_${urlToCacheKey(url)}`);
 }
 
 // ── Provider registry ──
@@ -645,6 +654,15 @@ const perplexityProvider: ProviderImpl = {
  * request building and response parsing. Compile and runtime errors are surfaced
  * separately so the user knows whether their syntax or their field mapping is broken.
  */
+/**
+ * Custom-provider transform code (compiled with new Function) only runs when the user has
+ * explicitly set browserExt.trustCustomProviders to literal true. No truthy coercion: an
+ * imported config carrying `1` or `"true"` does not unlock execution.
+ */
+export function customProviderCodeAllowed(config: { ext: { trustCustomProviders?: boolean } }): boolean {
+	return config.ext.trustCustomProviders === true;
+}
+
 function buildCustomProviderImpl(cfg: CustomProviderConfig): ProviderImpl {
 	return {
 		id: cfg.id,
@@ -657,6 +675,13 @@ function buildCustomProviderImpl(cfg: CustomProviderConfig): ProviderImpl {
 				!!process.env[cfg.envKey];
 		},
 		async search(query, n, config) {
+			// Defense in depth: never compile/run transform code unless explicitly trusted.
+			if (!customProviderCodeAllowed(config)) {
+				throw new Error(
+					`Custom provider "${cfg.label}" is disabled — it runs arbitrary code. ` +
+					`Set browserExt.trustCustomProviders=true in settings.json to enable it.`,
+				);
+			}
 			const apiKey = String(
 				(config.ext as Record<string, unknown>)[cfg.envKey] ||
 				process.env[cfg.envKey] || ""
@@ -744,12 +769,117 @@ async function performSearch(
 	};
 }
 
+// ── SSRF guard ──
+//
+// fetch_content fetches caller-supplied URLs. Without a guard that is an SSRF primitive
+// against loopback, RFC1918, link-local (incl. the 169.254.169.254 cloud-metadata endpoint),
+// and other internal ranges. Defense mirrors `request-filtering-agent` / `ssrf-req-filter`
+// and Node's own `net.BlockList`: reject non-http(s) schemes, resolve the host and reject if
+// ANY resolved address is private, and re-validate every redirect hop.
+//
+// Residual: a DNS-rebind between our lookup and undici's own lookup (TOCTOU) is not fully
+// closed without a pinning dispatcher; the resolve-all-addresses check makes it impractical
+// for the common single-record rebind and blocks every static/redirect vector.
+
+const SSRF_BLOCKLIST = new BlockList();
+// IPv4 ranges fetch_content must never reach.
+SSRF_BLOCKLIST.addSubnet("0.0.0.0", 8, "ipv4");        // "this host" / unspecified
+SSRF_BLOCKLIST.addSubnet("10.0.0.0", 8, "ipv4");       // RFC1918 private
+SSRF_BLOCKLIST.addSubnet("100.64.0.0", 10, "ipv4");    // CGNAT
+SSRF_BLOCKLIST.addSubnet("127.0.0.0", 8, "ipv4");      // loopback
+SSRF_BLOCKLIST.addSubnet("169.254.0.0", 16, "ipv4");   // link-local incl. cloud metadata
+SSRF_BLOCKLIST.addSubnet("172.16.0.0", 12, "ipv4");    // RFC1918 private
+SSRF_BLOCKLIST.addSubnet("192.168.0.0", 16, "ipv4");   // RFC1918 private
+SSRF_BLOCKLIST.addSubnet("224.0.0.0", 4, "ipv4");      // multicast
+SSRF_BLOCKLIST.addSubnet("240.0.0.0", 4, "ipv4");      // reserved incl. 255.255.255.255
+// IPv6.
+SSRF_BLOCKLIST.addAddress("::1", "ipv6");              // loopback
+SSRF_BLOCKLIST.addAddress("::", "ipv6");               // unspecified
+SSRF_BLOCKLIST.addSubnet("fc00::", 7, "ipv6");         // unique-local
+SSRF_BLOCKLIST.addSubnet("fe80::", 10, "ipv6");        // link-local
+
+/** True if an IP literal (v4 or v6) is in a range fetch_content must never reach. */
+export function isBlockedIp(ip: string): boolean {
+	const fam = isIP(ip);
+	if (fam === 4) return SSRF_BLOCKLIST.check(ip, "ipv4");
+	if (fam === 6) {
+		// IPv4-mapped IPv6 (e.g. ::ffff:127.0.0.1) must be re-checked against the v4 ranges.
+		const mapped = ip.match(/::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/i);
+		if (mapped && isIP(mapped[1]) === 4) return SSRF_BLOCKLIST.check(mapped[1], "ipv4");
+		return SSRF_BLOCKLIST.check(ip, "ipv6");
+	}
+	return false; // not an IP literal — hostnames are checked after DNS resolution
+}
+
+/** Validates scheme (http/https only) and, for literal-IP hosts, the IP. Pure/synchronous. */
+export function validateFetchUrlScheme(rawUrl: string): { ok: boolean; reason?: string } {
+	let u: URL;
+	try { u = new URL(rawUrl); } catch { return { ok: false, reason: "unparseable URL" }; }
+	if (u.protocol !== "http:" && u.protocol !== "https:") {
+		return { ok: false, reason: `disallowed scheme '${u.protocol}'` };
+	}
+	const host = u.hostname.replace(/^\[|\]$/g, ""); // strip IPv6 brackets
+	if (isIP(host) && isBlockedIp(host)) return { ok: false, reason: `blocked host IP ${host}` };
+	return { ok: true };
+}
+
+const MAX_FETCH_REDIRECTS = 5;
+
+/** Rejects if scheme is bad or the host resolves to any private address (SSRF). */
+async function assertUrlFetchable(rawUrl: string): Promise<void> {
+	const v = validateFetchUrlScheme(rawUrl);
+	if (!v.ok) throw new Error(`Blocked URL (${v.reason})`);
+	const host = new URL(rawUrl).hostname.replace(/^\[|\]$/g, "");
+	if (isIP(host)) return; // literal IP already validated by validateFetchUrlScheme
+	let addrs: Array<{ address: string }>;
+	try {
+		addrs = await dnsLookup(host, { all: true });
+	} catch {
+		throw new Error(`Blocked URL (DNS resolution failed for '${host}')`);
+	}
+	for (const a of addrs) {
+		if (isBlockedIp(a.address)) throw new Error(`Blocked URL ('${host}' resolves to private address ${a.address})`);
+	}
+}
+
+/** fetch() with manual redirect following — every hop re-validated against the SSRF guard. */
+async function safeFetch(url: string, init: RequestInit): Promise<Response> {
+	let current = url;
+	for (let hop = 0; hop <= MAX_FETCH_REDIRECTS; hop++) {
+		await assertUrlFetchable(current);
+		const res = await fetch(current, { ...init, redirect: "manual" });
+		if (res.status >= 300 && res.status < 400) {
+			const loc = res.headers.get("location");
+			if (!loc) return res;
+			current = new URL(loc, current).toString();
+			continue;
+		}
+		return res;
+	}
+	throw new Error(`Blocked URL (exceeded ${MAX_FETCH_REDIRECTS} redirects)`);
+}
+
+/**
+ * True if `filePath` resolves inside one of `roots`. Empty/undefined roots = unrestricted
+ * (non-breaking default). Used to constrain browser_upload_file to approved directories.
+ */
+export function uploadPathAllowed(filePath: string, roots: string[] | undefined): boolean {
+	if (!roots || roots.length === 0) return true;
+	const resolved = resolvePath(filePath);
+	return roots.some(root => {
+		const r = resolvePath(root);
+		if (resolved === r) return true;
+		const withSep = r.endsWith(pathSep) ? r : r + pathSep;
+		return resolved.startsWith(withSep);
+	});
+}
+
 // ── Content fetching ──
 
 /** Async URL content fetch — uses native fetch, no execFileSync, does not block event loop. */
 async function fetchUrlContent(url: string): Promise<{ title: string; content: string; error?: string }> {
 	try {
-		const res = await fetch(url, {
+		const res = await safeFetch(url, {
 			headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" },
 			signal: AbortSignal.timeout(15000),
 		});
@@ -826,12 +956,16 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 	// ── Load config once — passed to all tools that need settings ──
 	const config = loadConfig();
 
-	// Append any user-defined providers from settings.json → browserExt.customProviders
-	const customImpls = (config.ext.customProviders ?? []).map(buildCustomProviderImpl);
-	if (customImpls.length > 0) {
+	// Append any user-defined providers from settings.json → browserExt.customProviders.
+	// Custom providers execute arbitrary transform code, so they are only registered when the
+	// user has explicitly set browserExt.trustCustomProviders=true (Workspace-Trust model).
+	const declaredCustom = config.ext.customProviders ?? [];
+	const customProvidersTrusted = customProviderCodeAllowed(config);
+	const skippedCustomProviders = customProvidersTrusted ? 0 : declaredCustom.length;
+	if (declaredCustom.length > 0 && customProvidersTrusted) {
 		PROVIDER_REGISTRY = [
 			braveProvider, tavilyProvider, exaProvider, geminiProvider, perplexityProvider,
-			...customImpls,
+			...declaredCustom.map(buildCustomProviderImpl),
 		];
 	}
 
@@ -891,18 +1025,29 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 		promptGuidelines: ["Use browser_click after browser_navigate. Use browser_snapshot first to find the right selector."],
 		parameters: ClickParams,
 		async execute(_toolCallId, params) {
+			// delay: 80ms simulates human button-hold duration (pointerdown → pointerup).
+			// Without this, Playwright fires pointerdown+pointerup atomically at ~1ms,
+			// which fails event-timing challenges that check for plausible hold durations.
+			const hasCoords = typeof params.x === "number" && typeof params.y === "number";
 			try {
 				const page = await getPage(browserState, captureState);
-				// delay: 80ms simulates human button-hold duration (pointerdown → pointerup).
-				// Without this, Playwright fires pointerdown+pointerup atomically at ~1ms,
-				// which fails event-timing challenges that check for plausible hold durations.
+				if (hasCoords) {
+					// Coordinate click — no selector resolution, so it works under strict CSP
+					// and screenshot-driven flows. page.mouse.click dispatches trusted events.
+					await page.mouse.click(params.x!, params.y!, { delay: 80 });
+					return await withSupervisedScreenshot(browserState, "click", { x: params.x, y: params.y }, async () => ({
+						text: `Clicked at (${params.x}, ${params.y})`,
+					}));
+				}
+				if (!params.selector) return toolError("browser_click requires either 'selector' or both 'x' and 'y'.");
 				await page.click(params.selector, { timeout: params.timeout ?? 10000, delay: 80 });
 				return await withSupervisedScreenshot(browserState, "click", { selector: params.selector }, async () => ({
 					text: `Clicked: ${params.selector}`,
 				}));
 			} catch (err) {
 				const msg = err instanceof Error ? err.message : String(err);
-				return toolError(`Click failed on "${params.selector}": ${msg}`, { selector: params.selector });
+				const target = hasCoords ? `(${params.x}, ${params.y})` : `"${params.selector}"`;
+				return toolError(`Click failed on ${target}: ${msg}`, hasCoords ? { x: params.x, y: params.y } : { selector: params.selector });
 			}
 		},
 	});
@@ -1102,8 +1247,14 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 					return { content: [{ type: "text" as const, text: "Closed the last tab. Browser session ended." }], details: {} };
 				}
 				if (!browserState.page) return toolError("No active page to close");
-				const currentIdx = pages.indexOf(browserState.page);
-				await browserState.page.close();
+				const closing = browserState.page;
+				const currentIdx = pages.indexOf(closing);
+				// runBeforeUnload:true runs the page's unload sequence (pagehide/visibilitychange/
+				// beforeunload) so lifecycle handlers fire — the default skips them. Wait for the
+				// 'close' to settle before switching so handlers complete and the tab list is stable.
+				const settled = closing.waitForEvent("close", { timeout: 3000 }).catch(() => {});
+				await closing.close({ runBeforeUnload: true });
+				await settled;
 				// Re-fetch pages after close — stale snapshot would reference the closed page
 				const remaining = browserState.context!.pages();
 				const newIdx = Math.max(0, Math.min(currentIdx - 1, remaining.length - 1));
@@ -1151,7 +1302,22 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 		async execute() {
 			try {
 				const page = await getPage(browserState, captureState);
-				await page.goBack({ waitUntil: "load", timeout: 15000 });
+				// SPA pushState navigations fire `popstate` WITHOUT a load event, so waitUntil:'load'
+				// would hang and never observe them. Arm a popstate marker, go back at 'commit' level
+				// (resolves once committed, no load wait), then give a same-document back a brief
+				// window to dispatch popstate. A full-page back wipes the marker and the wait simply
+				// times out harmlessly.
+				await page.evaluate(() => {
+					(window as Window & { __pifoxPopstate?: boolean }).__pifoxPopstate = false;
+					window.addEventListener("popstate", () => {
+						(window as Window & { __pifoxPopstate?: boolean }).__pifoxPopstate = true;
+					}, { once: true });
+				}).catch(() => {});
+				await page.goBack({ waitUntil: "commit", timeout: 15000 });
+				await page.waitForFunction(
+					() => (window as Window & { __pifoxPopstate?: boolean }).__pifoxPopstate === true,
+					{ timeout: 1000 },
+				).catch(() => {});
 				return { content: [{ type: "text" as const, text: `Went back → ${page.url()}` }], details: { url: page.url() } };
 			} catch (err) {
 				const msg = err instanceof Error ? err.message : String(err);
@@ -1271,6 +1437,26 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 			paths: Type.Array(Type.String(), { description: "Absolute local filesystem paths to upload" }),
 		}),
 		async execute(_toolCallId, params) {
+			const roots = config.ext.allowedUploadRoots;
+			if (roots && roots.length > 0) {
+				// Resolve symlinks on BOTH sides before containment — a symlink inside an allowed
+				// root must not be able to point outside it. realpathSync also collapses junctions.
+				// Fail closed: an unresolvable target, or roots that don't resolve, blocks the upload.
+				const realRoots = roots
+					.map(r => { try { return realpathSync(r); } catch { return null; } })
+					.filter((r): r is string => r !== null);
+				const blocked = params.paths.filter(p => {
+					let real: string;
+					try { real = realpathSync(p); } catch { return true; }
+					return realRoots.length === 0 || !uploadPathAllowed(real, realRoots);
+				});
+				if (blocked.length > 0) {
+					return toolError(
+						`Upload blocked — path(s) outside browserExt.allowedUploadRoots: ${blocked.join(", ")}`,
+						{ blocked },
+					);
+				}
+			}
 			try {
 				const page = await getPage(browserState, captureState);
 				await page.locator(params.selector).setInputFiles(params.paths);
@@ -2313,6 +2499,14 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 			ctx.ui.notify(
 				"⚠ No search key configured. web_search and code_search are disabled.\n" +
 				"Run /search for the setup wizard (Brave Search = free, 2,000 queries/mo).",
+				"warning",
+			);
+		}
+
+		if (skippedCustomProviders > 0) {
+			ctx.ui.notify(
+				`⚠ ${skippedCustomProviders} custom search provider(s) not loaded — they execute custom code.\n` +
+				"To enable: set browserExt.trustCustomProviders = true in ~/.pi/agent/settings.json, then /reload.",
 				"warning",
 			);
 		}
