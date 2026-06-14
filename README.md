@@ -15,7 +15,7 @@
 
 ---
 
-Pi-Fox gives your pi agent a full [Playwright](https://playwright.dev/) browser (Firefox by default, Chromium and WebKit supported) — no API key required. Navigate pages, click, type, screenshot, and extract clean readable text out of the box. For better agentic web search, drop in a key for any of four providers — Brave, Tavily, Exa, or Gemini — all with free tiers. Prefer a different one? Use the setup wizard to add it.
+Pi-Fox gives your pi agent a full [Playwright](https://playwright.dev/) browser (Firefox by default, Chromium and WebKit supported) — no API key required. Navigate pages, click, type, screenshot, and extract clean readable text out of the box. For better agentic web search, drop in a key for any of five providers — Brave, Tavily, Exa, and Gemini all have free tiers, plus Perplexity (paid). Prefer a different one? Use the setup wizard to add it.
 
 With supervised mode, every move is captured and saved to your local filesystem as a chronological audit trail. Run headless by default; flip it visible when you want to watch it work. Change any setting by asking your agent or editing a single JSON file.
 
@@ -49,27 +49,38 @@ Search providers are optional. Browser automation works without any key configur
 | Tavily | 1,000 queries/mo | [Get API key](https://tavily.com/) |
 | Exa | 2,500 queries/mo | [Get API key](https://exa.ai/) |
 | Gemini | Free tier | [Get API key](https://aistudio.google.com/app/apikey) |
+| Perplexity | Paid (no free tier) | [Get API key](https://www.perplexity.ai/settings/api) |
 
 You only need one. The first key you configure becomes the active provider automatically. With multiple providers configured, use `/search <provider-id>` to switch instantly at runtime (e.g. `/search brave`).
 
+Need a provider that isn't listed? The `/search` wizard can add any search API. Because a custom provider runs its own transform code, it stays disabled until you set `trustCustomProviders: true` (see [Configuration](#configuration)).
+
 ## Tools
 
-### Browser (15 tools)
+### Browser (23 tools)
 
 | Tool | Description |
 |---|---|
 | `browser_navigate` | Navigate to a URL. |
-| `browser_click` | Click an element by CSS selector, visible text, or ARIA role. |
+| `browser_click` | Click an element by CSS selector, visible text, or ARIA role — or by `x`/`y` viewport coordinates (no selector) for strict-CSP and screenshot-driven flows. |
 | `browser_type` | Type into an input, textarea, or contenteditable element. |
+| `browser_key` | Press a key or combination — Enter, Tab, Escape, arrows, and shortcuts like `Control+A`. |
+| `browser_hover` | Move the cursor over an element to trigger hover effects, tooltips, or menus. |
+| `browser_drag` | Drag an element and drop it onto another. |
+| `browser_scroll` | Scroll the page or a specific element (wheel, scroll-into-view, or by offset). |
+| `browser_upload_file` | Set local file(s) on a file input. Honors the `allowedUploadRoots` allowlist when configured. |
 | `browser_snapshot` | Get the accessibility tree of the current page — structure, roles, and states. |
 | `browser_screenshot` | Take a screenshot, returned as a base64 PNG or JPEG. |
 | `browser_evaluate` | Run arbitrary JavaScript in the page context and return the result. |
 | `browser_wait` | Wait for an element to appear or disappear, or pause for a fixed timeout. |
-| `browser_new_tab` | Open a new browser tab. |
-| `browser_list_tabs` | List all open tabs with their index, URL, and title. |
-| `browser_close_tab` | Close the current tab. |
-| `browser_select_tab` | Switch focus to a tab by its index. |
-| `browser_back` | Navigate back one step in browser history. |
+| `browser_console` | Read captured browser console logs (collected automatically as the browser runs). |
+| `browser_network` | Read captured network requests (collected automatically as the browser runs). |
+| `browser_dialog` | Arm a handler for the next dialog (alert/confirm/prompt) — call before the triggering action. |
+| `browser_tab_list` | List all open tabs with their index, URL, and title. |
+| `browser_tab_new` | Open a new browser tab. |
+| `browser_tab_close` | Close the current tab. |
+| `browser_tab_select` | Switch focus to a tab by its index. |
+| `browser_back` | Navigate back one step in history — handles same-document SPA (`pushState`) navigations. |
 | `browser_forward` | Navigate forward one step in browser history. |
 | `browser_reload` | Reload the current page. |
 | `browser_close` | Close the entire browser session and free resources. |
@@ -111,6 +122,8 @@ Full example block in `~/.pi/agent/settings.json`:
     "headless": true,
     "suppressStartupMessage": false,
     "activeProvider": "brave",
+    "trustCustomProviders": false,
+    "allowedUploadRoots": ["/absolute/path/you/allow"],
     "BRAVE_API_KEY": "...",
     "TAVILY_API_KEY": "...",
     "EXA_API_KEY": "...",
@@ -120,6 +133,11 @@ Full example block in `~/.pi/agent/settings.json`:
 ```
 
 You only need the key(s) for providers you want to use. All settings can also be changed by asking your agent — for example: *"switch to Exa for searches"* or *"run the browser in visible mode."*
+
+- `trustCustomProviders` — custom search providers (added via the `/search` wizard) run their own transform code, so they stay **disabled until you explicitly set this to `true`**.
+- `allowedUploadRoots` — optional allowlist of directories `browser_upload_file` may read from; paths outside them (and symlinks escaping them) are rejected. Omit for no restriction.
+
+Engine and browser defaults can also be set via environment variables (useful for CI): `PI_BROWSER_ENGINE` (`firefox` | `chromium` | `webkit`), `PI_BROWSER_HEADLESS`, `PI_BROWSER_SUPERVISED`, `PI_BROWSER_WIDTH`, and `PI_BROWSER_HEIGHT`.
 
 ## Credits
 
