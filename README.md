@@ -1,10 +1,10 @@
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/vaniteav/pi-fox/main/docs/banner.png" alt="Pi-Fox banner" width="100%">
+<img src="https://raw.githubusercontent.com/vaniteav/pi-fox/main/docs/banner.png" alt="pi-fox banner" width="100%">
 
 # pi-fox
 
-> A fox doesn't knock on the door. It finds the gap in the fence, slips through, and comes back with exactly what you sent it for. Pi-Fox is that instinct for your agent — quiet, quick, and it always brings receipts.
+> A fox doesn't knock on the door. It finds the gap in the fence, slips through, and comes back with exactly what you sent it for. pi-fox is that instinct for your agent — quiet, quick, and it always brings receipts.
 
 [![npm version](https://badge.fury.io/js/pi-fox.svg)](https://badge.fury.io/js/pi-fox)
 [![npm downloads](https://img.shields.io/npm/dw/pi-fox)](https://www.npmjs.com/package/pi-fox)
@@ -15,31 +15,34 @@
 
 ---
 
-Pi-Fox gives your pi agent a full [Playwright](https://playwright.dev/) browser (Firefox by default, Chromium and WebKit supported) — no API key required. Navigate pages, click, type, screenshot, and extract clean readable text out of the box. For better agentic web search, drop in a key for any of five providers — Brave, Tavily, Exa, and Gemini all have free tiers, plus Perplexity (paid). Prefer a different one? Use the setup wizard to add it.
+pi-fox gives your pi agent a full [Playwright](https://playwright.dev/) browser (Firefox by default; Chromium and WebKit selectable) — no API key required. Navigate pages, click, type, screenshot, and extract clean, readable Markdown out of the box. For better agentic web search, drop in a key for any of five providers — Brave, Tavily, Exa, and Gemini all have free tiers, plus Perplexity (paid). Prefer a different one? Use the setup wizard to add it.
 
 With supervised mode, every move is captured and saved to your local filesystem as a chronological audit trail. Run headless by default; flip it visible when you want to watch it work. Change any setting by asking your agent or editing a single JSON file.
 
 Under the hood it's a single TypeScript extension: a `ProviderImpl` registry for search backends, `withSupervisedScreenshot` wrapping every browser action, and `fetchJson` for all API calls — no curl, no shell-outs.
 
-## Install
+## Highlights
 
-**Via npm (recommended):**
-```bash
-pi install npm:pi-fox
-```
-
-**Manual:**
-```bash
-git clone https://github.com/vaniteav/pi-fox
-cp -r pi-fox ~/.pi/agent/extensions/
-npx playwright install firefox
-```
+- **No API key to start** — a full Playwright browser works out of the box. Add a search key only when you want web search.
+- **Five search providers, four free** — Brave, Tavily, Exa, and Gemini all have free tiers (Perplexity is paid). Switch at runtime with `/search`, or add your own via the wizard.
+- **Built-in audit trail** — supervised mode screenshots every action to your local disk in order, so you can see exactly what your agent did. On by default; flip it off once you trust the flow.
+- **Clean text, not raw HTML** — `fetch_content` extracts readable Markdown from any page.
+- **27 tools** — 23 browser + 4 web, all in one extension.
 
 ## Setup
 
-Load pi and run `/search` — the setup wizard will guide you through picking a search provider and storing your API key.
+**1. Install the extension**
 
-Search providers are optional. Browser automation works without any key configured.
+```bash
+pi install npm:pi-fox
+npx playwright install firefox   # one-time: downloads the browser pi-fox drives
+```
+
+That's all browser automation needs — navigate, click, screenshot, and text extraction work immediately, no API key. *(Manual install: `git clone https://github.com/vaniteav/pi-fox && cp -r pi-fox ~/.pi/agent/extensions/ && npx playwright install firefox`.)*
+
+**2. Add a search provider — optional**
+
+For agentic web search, load pi and run `/search` — the wizard walks you through picking a provider and storing your key. Or just ask your agent: *"set up Brave search."* Skip it entirely if you only need browser control.
 
 ## Search providers
 
@@ -91,7 +94,7 @@ Need a provider that isn't listed? The `/search` wizard can add any search API. 
 |---|---|
 | `web_search` | Search the web via your configured provider; supports multi-query, recency filtering, and domain filtering. |
 | `code_search` | Search for code examples, API docs, and Stack Overflow answers; uses Exa when available, falls back to `web_search`. |
-| `fetch_content` | Fetch one or more URLs and extract clean readable text from the HTML. |
+| `fetch_content` | Fetch one or more URLs and extract clean, readable Markdown from the HTML. |
 | `get_search_content` | Retrieve cached content from a previous search or fetch by response ID or URL. |
 
 ## Commands
@@ -142,7 +145,7 @@ Engine and browser defaults can also be set via environment variables (useful fo
 ## Credits
 
 - Browser automation powered by [Playwright](https://playwright.dev/) (Microsoft)
-- Built for [pi coding agent](https://github.com/earendil-works/pi-coding-agent) by earendil-works
+- Built for [pi](https://github.com/earendil-works/pi) by earendil-works
 
 ## License
 

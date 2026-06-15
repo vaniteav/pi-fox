@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-06-14
+
+Documentation release — version bump so npm serves the updated README. No runtime changes.
+
+### Fixed
+- Install docs: the npm path now includes `npx playwright install firefox`. The package has no postinstall, so the browser binary must be fetched once — without it, browser tools fail on first use.
+- Corrected a broken Credits link that pointed at a non-existent `earendil-works/pi-coding-agent` repo; now links the canonical `earendil-works/pi`.
+
+### Changed
+- README overhaul: added a Highlights section, merged Install and Setup into one procedural flow, standardized the pi / pi-fox wordmark to lowercase, aligned "Markdown" terminology, and trimmed redundancy.
+
 ## [1.0.1] - 2026-06-13
 
 ### Added
@@ -44,6 +55,7 @@ Initial public release (`pi-fox`).
 - `fetch_content` HTML→Markdown via [Turndown](https://github.com/mixmark-io/turndown), with a plain-text fallback
 - Optional supervised mode — auto-screenshot after each browser action
 
-[Unreleased]: https://github.com/vaniteav/pi-fox/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/vaniteav/pi-fox/compare/v1.0.2...HEAD
+[1.0.2]: https://github.com/vaniteav/pi-fox/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/vaniteav/pi-fox/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/vaniteav/pi-fox/releases/tag/v1.0.0
