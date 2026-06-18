@@ -1,6 +1,6 @@
 {
   "name": "pi-fox",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Browser automation + multi-provider web search for your pi agent — with automatic screenshot audit trail (optional).",
   "main": "index.ts",
   "files": [
@@ -30,6 +30,7 @@
   "license": "MIT",
   "type": "commonjs",
   "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
     "@earendil-works/pi-coding-agent": "*"
   },
   "dependencies": {

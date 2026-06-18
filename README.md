@@ -6,7 +6,7 @@
 
 > A fox doesn't knock on the door. It finds the gap in the fence, slips through, and comes back with exactly what you sent it for. pi-fox is that instinct for your agent — quiet, quick, and it always brings receipts.
 
-[![npm version](https://badge.fury.io/js/pi-fox.svg)](https://badge.fury.io/js/pi-fox)
+[![npm version](https://img.shields.io/npm/v/pi-fox)](https://www.npmjs.com/package/pi-fox)
 [![npm downloads](https://img.shields.io/npm/dw/pi-fox)](https://www.npmjs.com/package/pi-fox)
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/L2J320X82M)
@@ -96,6 +96,8 @@ Need a provider that isn't listed? The `/search` wizard can add any search API. 
 | `code_search` | Search for code examples, API docs, and Stack Overflow answers; uses Exa when available, falls back to `web_search`. |
 | `fetch_content` | Fetch one or more URLs and extract clean, readable Markdown from the HTML. |
 | `get_search_content` | Retrieve cached content from a previous search or fetch by response ID or URL. |
+
+Tool failures such as invalid arguments, navigation failures, blocked fetches, or missing cached content surface as pi tool errors, not as successful text responses.
 
 ## Commands
 

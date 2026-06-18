@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { EventEmitter } from 'events';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { Type } from '@sinclair/typebox';
 import { Value } from '@sinclair/typebox/value';
 import { attachPageCapture, filterConsoleLogs, filterNetworkRequests, isBlockedIp, validateFetchUrlScheme, customProviderCodeAllowed, uploadPathAllowed } from './index';
@@ -237,6 +239,19 @@ describe('browser_dialog arming', () => {
 
     expect(dismissed).toBe(true);
     expect(state.pendingDialog).toBeNull();
+  });
+});
+
+describe('pi SDK v0.79.7 compatibility', () => {
+  const source = readFileSync(join(__dirname, 'index.ts'), 'utf8');
+
+  it('uses StringEnum instead of Type.Union/Type.Literal for string enum schemas', () => {
+    expect(source).toContain('StringEnum');
+    expect(source).not.toMatch(/Type\.(Union|Literal)/);
+  });
+
+  it('throws tool errors instead of returning isError from execute results', () => {
+    expect(source).not.toMatch(/isError:\s*true/);
   });
 });
 

@@ -47,6 +47,7 @@
  */
 
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { StringEnum } from "@earendil-works/pi-ai";
 import { Type } from "typebox";
 import { existsSync, readFileSync, writeFileSync, mkdirSync, realpathSync } from "node:fs";
 import { join, resolve as resolvePath, sep as pathSep } from "node:path";
@@ -248,13 +249,9 @@ function getLastCapturedRaw(): unknown {
 
 // ── Tool helpers ──
 
-/** Standard error response — replaces 19 duplicated error construction blocks. */
-function toolError(text: string, extras?: Record<string, unknown>) {
-	return {
-		content: [{ type: "text" as const, text }],
-		details: { error: text, ...extras },
-		isError: true as const,
-	};
+/** Standard tool failure path. Pi marks thrown tool errors as failed executions. */
+function toolError(text: string, _extras?: Record<string, unknown>): never {
+	throw new Error(text);
 }
 
 /**
@@ -1182,7 +1179,7 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 				return { content: [{ type: "text" as const, text: "Nothing to wait for" }], details: {} };
 			} catch (err) {
 				const msg = err instanceof Error ? err.message : String(err);
-				return { content: [{ type: "text" as const, text: `Wait failed: ${msg}` }], details: { error: msg }, isError: true };
+				return toolError(`Wait failed: ${msg}`);
 			}
 		},
 	});
@@ -1205,7 +1202,7 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 				return { content: [{ type: "text" as const, text: tabs.length ? lines.join("\n") : "No tabs open" }], details: { tabCount: tabs.length, tabs } };
 			} catch (err) {
 				const msg = err instanceof Error ? err.message : String(err);
-				return { content: [{ type: "text" as const, text: `Tab list failed: ${msg}` }], details: { error: msg }, isError: true };
+				return toolError(`Tab list failed: ${msg}`);
 			}
 		},
 	});
@@ -1227,7 +1224,7 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 				return { content: [{ type: "text" as const, text: `Opened new tab [${idx}]${params.url ? `: ${params.url}` : ""}` }], details: { index: idx, url: params.url } };
 			} catch (err) {
 				const msg = err instanceof Error ? err.message : String(err);
-				return { content: [{ type: "text" as const, text: `New tab failed: ${msg}` }], details: { error: msg }, isError: true };
+				return toolError(`New tab failed: ${msg}`);
 			}
 		},
 	});
@@ -1281,13 +1278,13 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 			try {
 				const pages = browserState.context?.pages() || [];
 				if (params.index < 0 || params.index >= pages.length) {
-					return { content: [{ type: "text" as const, text: `Tab index ${params.index} out of range. ${pages.length} tabs open (0-${pages.length - 1})` }], details: { error: "out of range" }, isError: true };
+					return toolError(`Tab index ${params.index} out of range. ${pages.length} tabs open (0-${pages.length - 1})`);
 				}
 				browserState.page = pages[params.index];
 				return { content: [{ type: "text" as const, text: `Switched to tab [${params.index}]: ${(await browserState.page?.title()) || "(loading)"} - ${browserState.page?.url()}` }], details: { index: params.index } };
 			} catch (err) {
 				const msg = err instanceof Error ? err.message : String(err);
-				return { content: [{ type: "text" as const, text: `Tab select failed: ${msg}` }], details: { error: msg }, isError: true };
+				return toolError(`Tab select failed: ${msg}`);
 			}
 		},
 	});
@@ -1321,7 +1318,7 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 				return { content: [{ type: "text" as const, text: `Went back → ${page.url()}` }], details: { url: page.url() } };
 			} catch (err) {
 				const msg = err instanceof Error ? err.message : String(err);
-				return { content: [{ type: "text" as const, text: `Back failed: ${msg}` }], details: { error: msg }, isError: true };
+				return toolError(`Back failed: ${msg}`);
 			}
 		},
 	});
@@ -1340,7 +1337,7 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 				return { content: [{ type: "text" as const, text: `Went forward → ${page.url()}` }], details: { url: page.url() } };
 			} catch (err) {
 				const msg = err instanceof Error ? err.message : String(err);
-				return { content: [{ type: "text" as const, text: `Forward failed: ${msg}` }], details: { error: msg }, isError: true };
+				return toolError(`Forward failed: ${msg}`);
 			}
 		},
 	});
@@ -1359,7 +1356,7 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 				return { content: [{ type: "text" as const, text: `Reloaded: ${page.url()}` }], details: { url: page.url() } };
 			} catch (err) {
 				const msg = err instanceof Error ? err.message : String(err);
-				return { content: [{ type: "text" as const, text: `Reload failed: ${msg}` }], details: { error: msg }, isError: true };
+				return toolError(`Reload failed: ${msg}`);
 			}
 		},
 	});
@@ -1665,7 +1662,7 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 			"Use promptText to supply input for window.prompt() dialogs.",
 		],
 		parameters: Type.Object({
-			action: Type.Union([Type.Literal("accept"), Type.Literal("dismiss")], {
+			action: StringEnum(["accept", "dismiss"] as const, {
 				description: "Whether to accept or dismiss the dialog",
 			}),
 			promptText: Type.Optional(Type.String({ description: "Text to enter for window.prompt() dialogs" })),
@@ -1834,7 +1831,7 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 		async execute(_toolCallId, params) {
 			const urls = params.urls?.length ? params.urls : (params.url ? [params.url] : []);
 			if (!urls.length) {
-				return { content: [{ type: "text" as const, text: "Error: No URL provided." }], details: { error: "No URL provided" }, isError: true };
+				return toolError("No URL provided.");
 			}
 
 			const results = await Promise.all(urls.map(u => fetchUrlContent(u)));
@@ -1850,7 +1847,7 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 			if (urls.length === 1) {
 				const r = results[0];
 				if (r.error) {
-					return { content: [{ type: "text" as const, text: `Error: ${r.error}` }], details: { error: r.error, url: urls[0] }, isError: true };
+					return toolError(r.error);
 				}
 				const truncated = r.content.length > 30000;
 				const output = truncated ? r.content.substring(0, 30000) + "\n\n[Content truncated...]" : r.content;
@@ -1900,11 +1897,7 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 			}
 
 			if (!data) {
-				return {
-					content: [{ type: "text" as const, text: "No cached content found. Run web_search or fetch_content first, then pass the URL to get_search_content." }],
-					details: { error: "Not found" },
-					isError: true,
-				};
+				return toolError("No cached content found. Run web_search or fetch_content first, then pass the URL to get_search_content.");
 			}
 
 			if (data.type === "search") {
@@ -1944,7 +1937,7 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 				return { content: [{ type: "text" as const, text: output }], details: { type: "codesearch", resultCount: results.length } };
 			}
 
-			return { content: [{ type: "text" as const, text: "Unknown cache type." }], details: { error: "Unknown type" }, isError: true };
+			return toolError("Unknown cache type.");
 		},
 	});
 
