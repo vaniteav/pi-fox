@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { Type } from '@sinclair/typebox';
 import { Value } from '@sinclair/typebox/value';
-import { attachPageCapture, filterConsoleLogs, filterNetworkRequests, isBlockedIp, validateFetchUrlScheme, customProviderCodeAllowed, uploadPathAllowed } from './index';
+import { attachPageCapture, filterConsoleLogs, filterNetworkRequests, isBlockedIp, validateFetchUrlScheme, customProviderCodeAllowed, uploadPathAllowed, selectValue } from './index';
 import { resolve as resolvePath } from 'node:path';
 
 // These will fail until the types and exports are added to index.ts
@@ -372,4 +372,37 @@ describe('validateFetchUrlScheme — SSRF guard', () => {
   it('rejects a literal-IP host that is private', () => { expect(validateFetchUrlScheme('http://127.0.0.1:8080/admin').ok).toBe(false); });
   it('rejects literal metadata IP host', () => { expect(validateFetchUrlScheme('http://169.254.169.254/latest/meta-data/').ok).toBe(false); });
   it('allows a literal public-IP host', () => { expect(validateFetchUrlScheme('http://8.8.8.8/').ok).toBe(true); });
+});
+
+
+describe('selectValue', () => {
+  const opts = [
+    { value: 'a' as const, label: 'Apple' },
+    { value: 'b' as const, label: 'Banana' },
+  ];
+
+  it('passes labels (not value objects) to ui.select', async () => {
+    let seen: unknown;
+    const ui = { select: async (_t: string, labels: string[]) => { seen = labels; return labels[0]; } };
+    await selectValue(ui, 'Pick:', opts);
+    expect(seen).toEqual(['Apple', 'Banana']);
+  });
+
+  it('returns the value whose label was chosen', async () => {
+    const ui = { select: async (_t: string, labels: string[]) => labels[1] };
+    expect(await selectValue(ui, 'Pick:', opts)).toBe('b');
+  });
+
+  it('returns undefined when the user cancels', async () => {
+    const ui = { select: async () => undefined };
+    expect(await selectValue(ui, 'Pick:', opts)).toBeUndefined();
+  });
+
+  it('throws on duplicate option labels rather than misrouting', async () => {
+    const ui = { select: async (_t: string, labels: string[]) => labels[0] };
+    await expect(selectValue(ui, 'Pick:', [
+      { value: 'a' as const, label: 'Same' },
+      { value: 'b' as const, label: 'Same' },
+    ])).rejects.toThrow(/duplicate/);
+  });
 });

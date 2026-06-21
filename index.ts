@@ -255,6 +255,26 @@ function toolError(text: string, _extras?: Record<string, unknown>): never {
 }
 
 /**
+ * `ctx.ui.select` renders plain strings and returns the chosen string. This wraps
+ * it for `{ value, label }` options: it shows the labels and returns the matching
+ * value, so callers switch on stable ids instead of display text.
+ */
+export async function selectValue<T extends string>(
+	ui: Pick<ExtensionContext["ui"], "select">,
+	title: string,
+	options: readonly { value: T; label: string }[],
+): Promise<T | undefined> {
+	const labels = options.map(o => o.label);
+	// ponytail: labels are the only key ui.select returns (the chosen string, not an
+	// index), so duplicate labels can't be disambiguated. Fail loud, not silently misroute.
+	if (new Set(labels).size !== labels.length) {
+		throw new Error(`selectValue: duplicate option labels in "${title}"`);
+	}
+	const choice = await ui.select(title, labels);
+	return choice === undefined ? undefined : options.find(o => o.label === choice)?.value;
+}
+
+/**
  * Wraps a browser tool's core logic with the supervised screenshot lifecycle.
  * Replaces 5 duplicated _ss/_ssNote/_det blocks.
  * BUG-2 fix: uses \u{1F4F8} (valid TS) not \U0001F4F8 (Python syntax).
@@ -1949,15 +1969,15 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 		ctx: ExtensionContext,
 		providers: ProviderImpl[],
 	): Promise<void> {
-		const newProvider = await ctx.ui.select(
+		const newProvider = await selectValue(
+			ctx.ui,
 			"Switch active provider to:",
 			providers.map(p => ({
 				value: p.id,
 				label: p.label,
-				description: p.freeTier !== "—" ? `Free: ${p.freeTier}` : "Paid",
 			})),
 		);
-		if (!newProvider || newProvider === "cancel") return;
+		if (!newProvider) return;
 
 		// Load current config for comparison
 		const currentCfg = loadConfig();
@@ -1982,12 +2002,12 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 			ctx.ui.notify("All providers are already configured.", "info");
 			return;
 		}
-		const provider = await ctx.ui.select(
+		const provider = await selectValue(
+			ctx.ui,
 			"Add provider:",
 			unconfigured.map(p => ({
 				value: p.id,
 				label: p.label,
-				description: p.freeTier !== "—" ? `Free: ${p.freeTier}` : "Paid",
 			})),
 		);
 		if (provider) {
@@ -2005,7 +2025,8 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 		cfg: Config,
 		providers: ProviderImpl[],
 	): Promise<void> {
-		const toRemove = await ctx.ui.select(
+		const toRemove = await selectValue(
+			ctx.ui,
 			"Remove provider:",
 			providers.map(p => ({ value: p.id, label: p.label })),
 		);
@@ -2038,12 +2059,12 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 			"info",
 		);
 
-		const label = await ctx.ui.select("Provider display name — pick the closest match or 'Other' to type:", [
-			{ value: "SerpAPI", label: "SerpAPI", description: "Google results via SerpAPI" },
-			{ value: "Bing Web Search", label: "Bing Web Search", description: "Microsoft Bing" },
-			{ value: "You.com", label: "You.com", description: "You.com search" },
-			{ value: "Kagi", label: "Kagi", description: "Kagi search (paid)" },
-			{ value: "custom", label: "Other — I'll type it", description: "Enter a custom name" },
+		const label = await selectValue(ctx.ui, "Provider display name — pick the closest match or 'Other' to type:", [
+			{ value: "SerpAPI", label: "SerpAPI" },
+			{ value: "Bing Web Search", label: "Bing Web Search" },
+			{ value: "You.com", label: "You.com" },
+			{ value: "Kagi", label: "Kagi" },
+			{ value: "custom", label: "Other — I'll type it" },
 		]);
 		if (!label) return null;
 
@@ -2059,13 +2080,13 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 			"info",
 		);
 
-		const keyConfirm = await ctx.ui.select("Have you added your API key to settings.json?", [
-			{ value: "yes", label: "Yes — key is saved", description: "Continue to transform step" },
-			{ value: "no", label: "No — cancel", description: "Exit wizard" },
+		const keyConfirm = await selectValue(ctx.ui, "Have you added your API key to settings.json?", [
+			{ value: "yes", label: "Yes — key is saved" },
+			{ value: "no", label: "No — cancel" },
 		]);
 		if (keyConfirm !== "yes") return null;
 
-		const signupUrl = await ctx.ui.select("Signup / docs URL:", [
+		const signupUrl = await selectValue(ctx.ui, "Signup / docs URL:", [
 			{ value: "https://serpapi.com/", label: "SerpAPI — https://serpapi.com/" },
 			{ value: "https://www.microsoft.com/en-us/bing/apis/bing-web-search-api", label: "Bing — microsoft.com" },
 			{ value: "https://you.com/", label: "You.com — https://you.com/" },
@@ -2073,7 +2094,7 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 			{ value: "unknown", label: "Other / unknown" },
 		]);
 
-		const freeTier = await ctx.ui.select("Free tier:", [
+		const freeTier = await selectValue(ctx.ui, "Free tier:", [
 			{ value: "100/mo", label: "100 queries/mo" },
 			{ value: "1,000/mo", label: "1,000 queries/mo" },
 			{ value: "paid", label: "Paid only" },
@@ -2143,9 +2164,9 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 			"info",
 		);
 
-		const action = await ctx.ui.select("When your transform is ready:", [
-			{ value: "done", label: "Done — I've edited the file", description: "Proceed to test" },
-			{ value: "cancel", label: "Cancel", description: "Exit wizard without saving" },
+		const action = await selectValue(ctx.ui, "When your transform is ready:", [
+			{ value: "done", label: "Done — I've edited the file" },
+			{ value: "cancel", label: "Cancel" },
 		]);
 
 		if (action !== "done") return null;
@@ -2285,10 +2306,10 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 
 		const passed = await runTestTransform(ctx, meta, transformSrc);
 		if (!passed) {
-			const retry = await ctx.ui.select("Test failed. What would you like to do?", [
-				{ value: "retry", label: "Edit transform and retry", description: `Re-edit ${TRANSFORM_DRAFT_PATH} then try again` },
-				{ value: "save", label: "Save anyway", description: "Save the untested transform — it may not work" },
-				{ value: "cancel", label: "Cancel", description: "Exit without saving" },
+			const retry = await selectValue(ctx.ui, "Test failed. What would you like to do?", [
+				{ value: "retry", label: "Edit transform and retry" },
+				{ value: "save", label: "Save anyway" },
+				{ value: "cancel", label: "Cancel" },
 			]);
 			if (retry === "retry") {
 				const retryTransform = await runCollectTransform(ctx, meta);
@@ -2340,12 +2361,13 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 			ctx.ui.notify(status, "info");
 
 			// ── Settings menu ──
-			const choice = await ctx.ui.select(
+			const choice = await selectValue(
+				ctx.ui,
 				"Browser settings:",
 				[
-					{ value: "headless",   label: `Headless: ${browserState.headless} → ${!browserState.headless}`,       description: "Toggle visible/invisible browser. Run /reload to apply." },
-					{ value: "supervised", label: `Supervised: ${browserState.supervised} → ${!browserState.supervised}`, description: "Auto-screenshot after each browser action. Run /reload to apply." },
-					{ value: "done",       label: "Done",                                                                   description: "Exit" },
+					{ value: "headless",   label: `Headless: ${browserState.headless} → ${!browserState.headless}` },
+					{ value: "supervised", label: `Supervised: ${browserState.supervised} → ${!browserState.supervised}` },
+					{ value: "done",       label: "Done" },
 				],
 			);
 
@@ -2397,15 +2419,16 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 			if (providers.length === 0) {
 				ctx.ui.notify("⚠ No search providers configured. web_search and code_search are disabled.", "warning");
 
-				const choice = await ctx.ui.select(
+				const choice = await selectValue(
+					ctx.ui,
 					"Would you like to configure a search provider?",
 					[
-						{ value: "brave",      label: "Brave Search — FREE (2,000 queries/mo)",  description: "Best free option. Sign up at brave.com/search/api/" },
-						{ value: "tavily",     label: "Tavily — FREE (1,000 queries/mo)",         description: "Designed for AI agents. Sign up at app.tavily.com" },
-						{ value: "exa",        label: "Exa — FREE tier (2,500 queries/mo)",       description: "Sign up at exa.ai" },
-						{ value: "gemini",     label: "Google Gemini — free tier",                description: "Get key at aistudio.google.com/app/apikey" },
-						{ value: "perplexity", label: "Perplexity AI — paid",                     description: "Get key at perplexity.ai/settings/api" },
-						{ value: "skip",       label: "Skip — configure later",                   description: "You can run /search again anytime" },
+						{ value: "brave",      label: "Brave Search — FREE (2,000 queries/mo)" },
+						{ value: "tavily",     label: "Tavily — FREE (1,000 queries/mo)" },
+						{ value: "exa",        label: "Exa — FREE tier (2,500 queries/mo)" },
+						{ value: "gemini",     label: "Google Gemini — free tier" },
+						{ value: "perplexity", label: "Perplexity AI — paid" },
+						{ value: "skip",       label: "Skip — configure later" },
 					],
 				);
 
@@ -2434,14 +2457,15 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 				"info",
 			);
 
-			const choice = await ctx.ui.select(
+			const choice = await selectValue(
+				ctx.ui,
 				`${active ? `Active: ${active.label}` : "No active provider"} · ${providers.length} configured · Options:`,
 				[
-					{ value: "switch",     label: "Switch active provider",   description: "Change which provider is used for web_search" },
-					{ value: "add",        label: "Add a provider",           description: "Configure an additional search provider" },
-					{ value: "add-custom", label: "Add custom provider",      description: "Wizard: add any search API without editing source" },
-					{ value: "remove",     label: "Remove a provider key",    description: "Clear a provider's key from settings.json" },
-					{ value: "done",       label: "Done",                     description: "Exit" },
+					{ value: "switch",     label: "Switch active provider" },
+					{ value: "add",        label: "Add a provider" },
+					{ value: "add-custom", label: "Add custom provider" },
+					{ value: "remove",     label: "Remove a provider key" },
+					{ value: "done",       label: "Done" },
 				],
 			);
 
