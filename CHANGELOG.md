@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.4] - 2026-06-21
+
+### Fixed
+- Provider menus in `/search` and `/browser` (switch / add / remove / custom-provider wizard) passed `{ value, label }` option objects to the pi SDK's `ui.select`, which renders and returns plain strings — so menus showed `[object Object]` and a selection returned an object instead of an id, corrupting config (e.g. `activeProvider`). Menus now pass string labels and map the choice back to its value; rows are label-only.
+
 ## [1.0.3] - 2026-06-18
 
 ### Changed
