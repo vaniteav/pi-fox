@@ -34,9 +34,6 @@
     "@earendil-works/pi-coding-agent": "*"
   },
   "dependencies": {
-    "@mozilla/readability": "^0.6.0",
-    "linkedom": "^0.18.12",
-    "p-limit": "^7.3.0",
     "playwright": "^1.60.0",
     "turndown": "^7.2.4"
   },

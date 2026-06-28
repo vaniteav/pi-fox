@@ -250,7 +250,7 @@ function getLastCapturedRaw(): unknown {
 // ── Tool helpers ──
 
 /** Standard tool failure path. Pi marks thrown tool errors as failed executions. */
-function toolError(text: string, _extras?: Record<string, unknown>): never {
+function toolError(text: string): never {
 	throw new Error(text);
 }
 
@@ -1029,7 +1029,7 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 				}));
 			} catch (err) {
 				const msg = err instanceof Error ? err.message : String(err);
-				return toolError(`Navigation failed: ${msg}`, { url: params.url });
+				return toolError(`Navigation failed: ${msg}`);
 			}
 		},
 	});
@@ -1064,7 +1064,7 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 			} catch (err) {
 				const msg = err instanceof Error ? err.message : String(err);
 				const target = hasCoords ? `(${params.x}, ${params.y})` : `"${params.selector}"`;
-				return toolError(`Click failed on ${target}: ${msg}`, hasCoords ? { x: params.x, y: params.y } : { selector: params.selector });
+				return toolError(`Click failed on ${target}: ${msg}`);
 			}
 		},
 	});
@@ -1091,7 +1091,7 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 				}));
 			} catch (err) {
 				const msg = err instanceof Error ? err.message : String(err);
-				return toolError(`Type failed on "${params.selector}": ${msg}`, { selector: params.selector });
+				return toolError(`Type failed on "${params.selector}": ${msg}`);
 			}
 		},
 	});
@@ -1151,7 +1151,7 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 				};
 			} catch (err) {
 				const msg = err instanceof Error ? err.message : String(err);
-				return toolError(`Screenshot failed: ${msg}`, { selector: params.selector as string | undefined });
+				return toolError(`Screenshot failed: ${msg}`);
 			}
 		},
 	});
@@ -1434,7 +1434,7 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 				}));
 			} catch (err) {
 				const msg = err instanceof Error ? err.message : String(err);
-				return toolError(`Key press failed: ${msg}`, { key: params.key });
+				return toolError(`Key press failed: ${msg}`);
 			}
 		},
 	});
@@ -1468,10 +1468,7 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 					return realRoots.length === 0 || !uploadPathAllowed(real, realRoots);
 				});
 				if (blocked.length > 0) {
-					return toolError(
-						`Upload blocked — path(s) outside browserExt.allowedUploadRoots: ${blocked.join(", ")}`,
-						{ blocked },
-					);
+					return toolError(`Upload blocked — path(s) outside browserExt.allowedUploadRoots: ${blocked.join(", ")}`);
 				}
 			}
 			try {
@@ -1482,7 +1479,7 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 				}));
 			} catch (err) {
 				const msg = err instanceof Error ? err.message : String(err);
-				return toolError(`Upload failed on "${params.selector}": ${msg}`, { selector: params.selector });
+				return toolError(`Upload failed on "${params.selector}": ${msg}`);
 			}
 		},
 	});
@@ -1509,7 +1506,7 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 				}));
 			} catch (err) {
 				const msg = err instanceof Error ? err.message : String(err);
-				return toolError(`Drag failed: ${msg}`, { source: params.source, target: params.target });
+				return toolError(`Drag failed: ${msg}`);
 			}
 		},
 	});
@@ -1560,7 +1557,7 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 				}));
 			} catch (err) {
 				const msg = err instanceof Error ? err.message : String(err);
-				return toolError(`Hover failed on "${params.selector}": ${msg}`, { selector: params.selector });
+				return toolError(`Hover failed on "${params.selector}": ${msg}`);
 			}
 		},
 	});
@@ -1606,7 +1603,7 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 				}));
 			} catch (err) {
 				const msg = err instanceof Error ? err.message : String(err);
-				return toolError(`Scroll failed: ${msg}`, { selector: params.selector });
+				return toolError(`Scroll failed: ${msg}`);
 			}
 		},
 	});

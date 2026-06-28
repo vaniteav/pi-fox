@@ -9,8 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Updated development dependencies to pi SDK v0.80.2; no runtime changes for extension consumers.
+- Removed three unused runtime dependencies (`@mozilla/readability`, `linkedom`, `p-limit`); content extraction has always used Turndown directly.
 
 ### Fixed
+- `ImageContent` shape updated to the flat `{ data, mimeType }` format introduced in SDK v0.80.2 (was using the old Anthropic API `source: { type, mediaType, data }` wrapper).
+- Explicit return-type annotation added to `execute()` functions with multiple `details` shapes, resolving `AgentToolResult<T>` inference failures under TypeScript 6.0.
+- Dead second parameter removed from the internal `toolError` helper and its 11 call sites.
 - CHANGELOG compare links for versions 1.0.3 and 1.0.4 were missing; `[Unreleased]` still pointed at v1.0.2. All links now correct.
 
 ## [1.0.4] - 2026-06-21
