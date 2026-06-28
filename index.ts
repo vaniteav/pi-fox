@@ -46,7 +46,7 @@
  *   /search     — search provider management
  */
 
-import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import type { AgentToolResult, ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { StringEnum } from "@earendil-works/pi-ai";
 import { Type } from "typebox";
 import { existsSync, readFileSync, writeFileSync, mkdirSync, realpathSync } from "node:fs";
@@ -1145,7 +1145,7 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 				return {
 					content: [
 						{ type: "text" as const, text: `Screenshot taken (${format}, ${buffer.length} bytes)${params.selector ? ` [selector: ${params.selector}]` : ""}` },
-						{ type: "image" as const, source: { type: "base64" as const, mediaType: `image/${format}`, data: base64 } },
+						{ type: "image" as const, data: base64, mimeType: `image/${format}` },
 					],
 					details: { format, size: buffer.length, url: page.url(), selector: (params.selector as string) ?? null },
 				};
@@ -1185,7 +1185,7 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 		promptSnippet: "Wait for an element or a timeout before proceeding",
 		promptGuidelines: ["Use browser_wait after actions that cause page changes (clicks, form submissions)."],
 		parameters: WaitParams,
-		async execute(_toolCallId, params) {
+		async execute(_toolCallId, params): Promise<AgentToolResult<Record<string, unknown>>> {
 			try {
 				const page = await getPage(browserState, captureState);
 				if (params.selector) {
@@ -1211,7 +1211,7 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 		promptSnippet: "List all open browser tabs",
 		promptGuidelines: ["Use browser_tab_list to see all open tabs when working with multiple pages."],
 		parameters: Type.Object({}),
-		async execute() {
+		async execute(): Promise<AgentToolResult<Record<string, unknown>>> {
 			try {
 				if (!browserState.context) return { content: [{ type: "text" as const, text: "No browser session open" }], details: {} };
 				const pages = browserState.context.pages();
@@ -1256,7 +1256,7 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 		promptSnippet: "Close the current browser tab",
 		promptGuidelines: [],
 		parameters: Type.Object({}),
-		async execute() {
+		async execute(): Promise<AgentToolResult<Record<string, unknown>>> {
 			try {
 				const pages = browserState.context?.pages() ?? [];
 				if (pages.length <= 1) {
@@ -1791,7 +1791,7 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 			"Use for any programming question — API usage, library examples, debugging help.",
 		promptSnippet: "Use for programming/API/library questions to retrieve concrete examples and docs.",
 		parameters: CodeSearchParams,
-		async execute(_toolCallId, params) {
+		async execute(_toolCallId, params): Promise<AgentToolResult<Record<string, unknown>>> {
 			const cfg = loadConfig();
 			const maxResults = (params.maxResults as number) ?? 10;
 			if (!params.query) {
@@ -1848,7 +1848,7 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 			"Content is cached locally and can be retrieved with get_search_content.",
 		promptSnippet: "Use to extract readable content from URL(s).",
 		parameters: FetchContentParams,
-		async execute(_toolCallId, params) {
+		async execute(_toolCallId, params): Promise<AgentToolResult<Record<string, unknown>>> {
 			const urls = params.urls?.length ? params.urls : (params.url ? [params.url] : []);
 			if (!urls.length) {
 				return toolError("No URL provided.");
@@ -1905,7 +1905,7 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 		description: "Retrieve full content from a previous web_search, code_search, or fetch_content call using its responseId or URL.",
 		promptSnippet: "Use after web_search/fetch_content when full stored content is needed via responseId or URL.",
 		parameters: GetSearchContentParams,
-		async execute(_toolCallId, params) {
+		async execute(_toolCallId, params): Promise<AgentToolResult<Record<string, unknown>>> {
 			let data: Record<string, unknown> | null = null;
 
 			if (params.responseId) {

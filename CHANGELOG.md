@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.5] - 2026-06-28
+
+### Changed
+- Updated development dependencies to pi SDK v0.80.2; no runtime changes for extension consumers.
+
+### Fixed
+- CHANGELOG compare links for versions 1.0.3 and 1.0.4 were missing; `[Unreleased]` still pointed at v1.0.2. All links now correct.
+
 ## [1.0.4] - 2026-06-21
 
 ### Fixed
@@ -67,7 +75,10 @@ Initial public release (`pi-fox`).
 - `fetch_content` HTML→Markdown via [Turndown](https://github.com/mixmark-io/turndown), with a plain-text fallback
 - Optional supervised mode — auto-screenshot after each browser action
 
-[Unreleased]: https://github.com/vaniteav/pi-fox/compare/v1.0.2...HEAD
+[Unreleased]: https://github.com/vaniteav/pi-fox/compare/v1.0.5...HEAD
+[1.0.5]: https://github.com/vaniteav/pi-fox/compare/v1.0.4...v1.0.5
+[1.0.4]: https://github.com/vaniteav/pi-fox/compare/v1.0.3...v1.0.4
+[1.0.3]: https://github.com/vaniteav/pi-fox/compare/v1.0.2...v1.0.3
 [1.0.2]: https://github.com/vaniteav/pi-fox/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/vaniteav/pi-fox/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/vaniteav/pi-fox/releases/tag/v1.0.0
