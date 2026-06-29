@@ -132,7 +132,8 @@ Full example block in `~/.pi/agent/settings.json`:
     "BRAVE_API_KEY": "...",
     "TAVILY_API_KEY": "...",
     "EXA_API_KEY": "...",
-    "GEMINI_API_KEY": "..."
+    "GEMINI_API_KEY": "...",
+    "PERPLEXITY_API_KEY": "..."
   }
 }
 ```
