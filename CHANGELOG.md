@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.6] - 2026-06-28
+
+### Fixed
+- `browser_forward` now mirrors the `browser_back` SPA guard: arms a `popstate` marker and uses `waitUntil: "commit"` so same-document (`pushState`) forward entries no longer time out with a false failure.
+- `browser_tab_new` no longer leaks the newly created page on navigation failure; the tab is closed before the error is re-thrown.
+- `web_search` with `includeContent: true` now returns `contentFetchId` in its result details, making the background-fetched page bodies retrievable via `get_search_content`.
+- `urlToCacheKey` now appends a DJB2 hash of the full URL so two URLs sharing the same first characters no longer collide in the fetch cache.
+- `browser_network` clear now also clears `pendingNetworkQueue`; previously pending entries accumulated across repeated clears.
+- `browser_key` `count` is now clamped to `[1, 100]` before the press loop; previously negative or very large values caused silent no-ops or indefinite hangs.
+
 ## [1.0.5] - 2026-06-28
 
 ### Changed
@@ -79,7 +89,8 @@ Initial public release (`pi-fox`).
 - `fetch_content` HTML→Markdown via [Turndown](https://github.com/mixmark-io/turndown), with a plain-text fallback
 - Optional supervised mode — auto-screenshot after each browser action
 
-[Unreleased]: https://github.com/vaniteav/pi-fox/compare/v1.0.5...HEAD
+[Unreleased]: https://github.com/vaniteav/pi-fox/compare/v1.0.6...HEAD
+[1.0.6]: https://github.com/vaniteav/pi-fox/compare/v1.0.5...v1.0.6
 [1.0.5]: https://github.com/vaniteav/pi-fox/compare/v1.0.4...v1.0.5
 [1.0.4]: https://github.com/vaniteav/pi-fox/compare/v1.0.3...v1.0.4
 [1.0.3]: https://github.com/vaniteav/pi-fox/compare/v1.0.2...v1.0.3

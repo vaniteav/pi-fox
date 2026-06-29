@@ -518,8 +518,10 @@ function cacheKey(prefix: string, input: string): string {
 }
 
 function urlToCacheKey(url: string): string {
-	// Create a filesystem-safe key from a URL
-	return url.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 100);
+	let hash = 5381;
+	for (let i = 0; i < url.length; i++) hash = ((hash << 5) + hash) ^ url.charCodeAt(i);
+	const prefix = url.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 80);
+	return `${prefix}_${Math.abs(hash).toString(36)}`;
 }
 
 function cachePath(key: string): string {
@@ -1238,10 +1240,15 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 			try {
 				await getPage(browserState, captureState);
 				const newPage = await browserState.context!.newPage();
-				if (params.url) await newPage.goto(params.url, { waitUntil: "load", timeout: 30000 });
-				browserState.page = newPage;
-				const idx = browserState.context!.pages().length - 1;
-				return { content: [{ type: "text" as const, text: `Opened new tab [${idx}]${params.url ? `: ${params.url}` : ""}` }], details: { index: idx, url: params.url } };
+				try {
+					if (params.url) await newPage.goto(params.url, { waitUntil: "load", timeout: 30000 });
+					browserState.page = newPage;
+					const idx = browserState.context!.pages().length - 1;
+					return { content: [{ type: "text" as const, text: `Opened new tab [${idx}]${params.url ? `: ${params.url}` : ""}` }], details: { index: idx, url: params.url } };
+				} catch (gotoErr) {
+					await newPage.close().catch(() => {});
+					throw gotoErr;
+				}
 			} catch (err) {
 				const msg = err instanceof Error ? err.message : String(err);
 				return toolError(`New tab failed: ${msg}`);
@@ -1353,7 +1360,17 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 		async execute() {
 			try {
 				const page = await getPage(browserState, captureState);
-				await page.goForward({ waitUntil: "load", timeout: 15000 });
+				await page.evaluate(() => {
+					(window as Window & { __pifoxPopstate?: boolean }).__pifoxPopstate = false;
+					window.addEventListener("popstate", () => {
+						(window as Window & { __pifoxPopstate?: boolean }).__pifoxPopstate = true;
+					}, { once: true });
+				}).catch(() => {});
+				await page.goForward({ waitUntil: "commit", timeout: 15000 });
+				await page.waitForFunction(
+					() => (window as Window & { __pifoxPopstate?: boolean }).__pifoxPopstate === true,
+					{ timeout: 1000 },
+				).catch(() => {});
 				return { content: [{ type: "text" as const, text: `Went forward → ${page.url()}` }], details: { url: page.url() } };
 			} catch (err) {
 				const msg = err instanceof Error ? err.message : String(err);
@@ -1425,7 +1442,7 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 				if (mods.metaKey) parts.push("Meta");
 				parts.push(params.key);
 				const keyCombo = parts.join("+");
-				const times = params.count ?? 1;
+				const times = Math.max(1, Math.min(Math.floor(params.count ?? 1), 100));
 				for (let i = 0; i < times; i++) {
 					await page.keyboard.press(keyCombo);
 				}
@@ -1656,7 +1673,10 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 		async execute(_toolCallId, params) {
 			try {
 				const entries = filterNetworkRequests(captureState.networkRequests, params.urlContains, params.method);
-				if (params.clear) captureState.networkRequests = [];
+				if (params.clear) {
+				captureState.networkRequests = [];
+				captureState.pendingNetworkQueue = [];
+			}
 				const networkText = entries.length === 0
 					? "No network requests captured."
 					: `${entries.length} request(s):\n${entries.map(e => `[${e.method}] ${e.url} → ${e.status ?? "pending"}`).join("\n")}`;
@@ -1756,11 +1776,12 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 
 			// Background content fetch — genuinely parallel now that fetchUrlContent is async
 			const topUrls = allResults.flatMap(r => r.results.slice(0, 3).map(s => s.url));
+			let contentFetchId: string | null = null;
 			if ((params.includeContent as boolean) && topUrls.length) {
 				output += `---\nCaching content for ${topUrls.length} URLs in background...\n`;
+				contentFetchId = cacheKey("fetch", topUrls.join("|"));
 				Promise.all(topUrls.map(u => fetchUrlContent(u))).then(contents => {
-					const fetchId = cacheKey("fetch", topUrls.join("|"));
-					storeCache(fetchId, { type: "fetch", urls: contents, timestamp: Date.now() });
+					storeCache(contentFetchId!, { type: "fetch", urls: contents, timestamp: Date.now() });
 				}).catch(() => { /* background errors ignored */ });
 			}
 
@@ -1771,6 +1792,7 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 					queryCount: queries.length,
 					provider: allResults[0]?.provider ?? "none",
 					responseId,
+					contentFetchId,
 					totalResults: allResults.reduce((sum, r) => sum + r.results.length, 0),
 					debugInfo: allResults[0]?.debugInfo,
 				},
