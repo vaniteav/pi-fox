@@ -2031,11 +2031,14 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 		);
 		if (provider) {
 			const def = PROVIDER_REGISTRY.find(p => p.id === provider)!;
-			ctx.ui.notify(`To add ${def.label}:`, "info");
-			ctx.ui.notify(`1. Get a key: ${def.signupUrl}`, "info");
-			ctx.ui.notify(`   Shell:        export ${def.envKey}="your-key-here"`, "info");
-			ctx.ui.notify(`   Pi settings:  ~/.pi/agent/settings.json → { "browserExt": { "${def.envKey}": "..." } }`, "info");
-			ctx.ui.notify(`2. Run /reload to activate.`, "info");
+			ctx.ui.notify(`${def.label}${def.freeTier ? ` — ${def.freeTier}` : ""}\nGet a key: ${def.signupUrl}`, "info");
+			const key = await ctx.ui.input(`Paste your ${def.envKey}:`, "your-api-key-here");
+			if (key && key.trim()) {
+				patchExtConfig({ [def.envKey]: key.trim() } as Partial<ExtConfig>);
+				ctx.ui.notify(`✓ ${def.label} key saved. Run /reload to activate.`, "info");
+			} else {
+				ctx.ui.notify("No key entered.", "info");
+			}
 		}
 	}
 
@@ -2454,15 +2457,14 @@ export default function browserWebExtension(pi: ExtensionAPI) {
 				if (choice && choice !== "skip") {
 					const def = PROVIDER_REGISTRY.find(p => p.id === choice);
 					if (def) {
-						ctx.ui.notify(`To use ${def.label}:`, "info");
-						ctx.ui.notify(`1. Get a free key: ${def.signupUrl}`, "info");
-						ctx.ui.notify(`2. Set it via one of these methods:`, "info");
-						ctx.ui.notify(`   Shell (current session):   export ${def.envKey}="your-key-here"`, "info");
-						ctx.ui.notify(`   Shell (persistent):        Add the above to ~/.bashrc`, "info");
-						ctx.ui.notify(`   Windows (persistent):      setx ${def.envKey} "your-key-here"`, "info");
-						ctx.ui.notify(`   Pi settings (persistent):  Edit ~/.pi/agent/settings.json:`, "info");
-						ctx.ui.notify(`     { "browserExt": { "${def.envKey}": "your-key-here", "activeProvider": "${def.id}" } }`, "info");
-						ctx.ui.notify(`3. Restart pi or run /reload for the key to take effect.`, "info");
+						ctx.ui.notify(`${def.label}${def.freeTier ? ` — ${def.freeTier}` : ""}\nGet a key: ${def.signupUrl}`, "info");
+						const key = await ctx.ui.input(`Paste your ${def.envKey}:`, "your-api-key-here");
+						if (key && key.trim()) {
+							patchExtConfig({ [def.envKey]: key.trim(), activeProvider: def.id as ProviderId } as Partial<ExtConfig>);
+							ctx.ui.notify(`✓ ${def.label} configured. Run /reload to activate.`, "info");
+						} else {
+							ctx.ui.notify("No key entered. Run /search anytime to configure a provider.", "info");
+						}
 					}
 				} else {
 					ctx.ui.notify("Skipped. Run /search anytime to configure a provider.", "info");

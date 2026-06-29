@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.6] - 2026-06-28
+
+### Fixed
+- `/search` and "Add a provider" wizard now collect the API key via an inline text prompt and save it directly to `settings.json`; previously both flows only printed manual-setup instructions and saved nothing.
+
 ## [1.0.5] - 2026-06-28
 
 ### Changed
@@ -85,7 +90,8 @@ Initial public release (`pi-fox`).
 - `fetch_content` HTML→Markdown via [Turndown](https://github.com/mixmark-io/turndown), with a plain-text fallback
 - Optional supervised mode — auto-screenshot after each browser action
 
-[Unreleased]: https://github.com/vaniteav/pi-fox/compare/v1.0.5...HEAD
+[Unreleased]: https://github.com/vaniteav/pi-fox/compare/v1.0.6...HEAD
+[1.0.6]: https://github.com/vaniteav/pi-fox/compare/v1.0.5...v1.0.6
 [1.0.5]: https://github.com/vaniteav/pi-fox/compare/v1.0.4...v1.0.5
 [1.0.4]: https://github.com/vaniteav/pi-fox/compare/v1.0.3...v1.0.4
 [1.0.3]: https://github.com/vaniteav/pi-fox/compare/v1.0.2...v1.0.3
